@@ -98,4 +98,28 @@ describe("trusted evaluator container policy", () => {
     expect(dockerfile).toContain("USER node");
     expect(dockerfile).toContain("scripts/evaluate-renderable.ts");
   });
+
+  it("defines a PR Docker build/run workflow with isolation probes", async () => {
+    const root = fileURLToPath(new URL("..", import.meta.url));
+    const workflow = await readFile(
+      path.join(root, ".github/workflows/evaluator-isolation.yml"),
+      "utf8",
+    );
+
+    expect(workflow).toContain("pull_request:");
+    expect(workflow).toContain("docker build");
+    expect(workflow).toContain("EXPECTED_MANIFEST_SHA256");
+    expect(workflow).toContain("--network none");
+    expect(workflow).toContain("--read-only");
+    expect(workflow).toContain("--cap-drop ALL");
+    expect(workflow).toContain("--security-opt no-new-privileges");
+    expect(workflow).toContain("dst=/input/renderable.json,readonly");
+    expect(workflow).toContain("dst=/output");
+    expect(workflow).toContain("UNSUPPORTED_RENDERABLE_NODE");
+    expect(workflow).toContain("ReadonlyRootfs == true");
+    expect(workflow).toContain("NetworkMode == \"none\"");
+    expect(workflow).toContain("writeFileSync(\"/evaluator/.write-probe\"");
+    expect(workflow).toContain("writeFileSync(\"/input/renderable.json\"");
+    expect(workflow).toContain("fetch(\"https://example.com\"");
+  });
 });

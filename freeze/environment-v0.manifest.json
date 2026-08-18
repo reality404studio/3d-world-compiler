@@ -3,6 +3,7 @@
   "algorithm": "sha256",
   "protectedPaths": [
     ".dockerignore",
+    ".github/workflows/evaluator-isolation.yml",
     ".gitignore",
     "README.md",
     "docs/design.md",
@@ -15,6 +16,7 @@
     "package.json",
     "protocol",
     "scripts/capture.ts",
+    "scripts/create-evaluator-test-inputs.ts",
     "scripts/evaluate-renderable.ts",
     "scripts/generate-freeze-manifest.ts",
     "scripts/io.ts",
@@ -44,24 +46,29 @@
       "size": 65
     },
     {
+      "path": ".github/workflows/evaluator-isolation.yml",
+      "sha256": "657a66fd5dfb45b4cef1735f406742efa85551928c7c384fda68ac669a74fe76",
+      "size": 6588
+    },
+    {
       "path": ".gitignore",
       "sha256": "89fe5a9d2e207af73baafd1f2179583a589a72eff91eea41e0dbe694a832d127",
       "size": 50
     },
     {
       "path": "README.md",
-      "sha256": "d44e286c5712e1363c23aee101a2a5b223b75e8bb99a9ec34a8c56b307a0394b",
-      "size": 8320
+      "sha256": "ee1bf7f869f70dab685d6ec03a7f7fd89d050a2889b49b89b4641168889cd96d",
+      "size": 9001
     },
     {
       "path": "docs/design.md",
-      "sha256": "a49f8aa64ac8c5d3ad1ffa2115a8cc14a4a57dc4d59170957606fc47aff35948",
-      "size": 11859
+      "sha256": "4e009b8abaf6a3924cf2d55b660dbf21f1c96e7c51c35659092203928a4234bf",
+      "size": 12712
     },
     {
       "path": "docs/freeze-checklist.md",
-      "sha256": "bbcefcafb86d27fd66806e45b9bbfd467a254ace3db1f798bf72a286cc72a77e",
-      "size": 6756
+      "sha256": "d1be944d3765bec19166dad2fa6bc129012a7bae597395a228ea83380a62328b",
+      "size": 7162
     },
     {
       "path": "evaluator/Dockerfile",
@@ -139,6 +146,11 @@
       "size": 1761
     },
     {
+      "path": "scripts/create-evaluator-test-inputs.ts",
+      "sha256": "eb228770f540a6d433054f6d04b1ab9021fa85b435444872fb93a7d0ae084690",
+      "size": 1771
+    },
+    {
       "path": "scripts/evaluate-renderable.ts",
       "sha256": "aa96979964ca1b1e163dc1bf01f6abbfc2b616bd2b5711b076da877b11bf22d4",
       "size": 3081
@@ -190,8 +202,8 @@
     },
     {
       "path": "src/integrity/frozen-paths.ts",
-      "sha256": "b1fbacb3283db8988fbb4012b1e7101f914851540b9ed6446fcb2327de5190c4",
-      "size": 803
+      "sha256": "bf96e4e8217db807acd59fec88ca6b0c1a76992b91a88b8cb08b6c85c21e9964",
+      "size": 895
     },
     {
       "path": "src/integrity/verify.ts",
@@ -265,8 +277,8 @@
     },
     {
       "path": "tests/evaluator.test.ts",
-      "sha256": "5fa58cbd77bc45edcb989104f278a3181c27cf4b3bc057beb6ccb5665f924c4e",
-      "size": 3923
+      "sha256": "1d989bc7de74d01f886c9e7d34b933e0c288d4a412c9db8b1449b5fd87eb7150",
+      "size": 5092
     },
     {
       "path": "tests/integrity.test.ts",

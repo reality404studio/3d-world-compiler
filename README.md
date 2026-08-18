@@ -125,6 +125,12 @@ npm run evaluator:run -- \
 
 The trusted experiment runner—not the subject workspace—must own this invocation and its recorded digest. This is only the evaluator execution boundary; no experiment scheduling, C0/C1 generation, repair, or scoring is implemented.
 
+### PR container verification
+
+Pull requests run `.github/workflows/evaluator-isolation.yml` on GitHub-hosted Ubuntu. The workflow computes the candidate manifest digest, builds the real evaluator image, and runs it with the frozen isolation flags. It verifies a valid six-view capture, light-injection rejection, pre/post manifest evidence, read-only root/evaluator/input, a single writable output bind, non-root execution, and disabled external networking.
+
+Local Docker is not required for PR verification. The CI image ID proves the candidate can build and execute in isolation; it does not replace the later human-approved registry digest or external trust-anchor procedure.
+
 ## Normalization policy
 
 Every condition uses the same center-and-uniform-scale normalization. Consequently normalized captures do **not** evaluate absolute world scale, cross-asset relative physical scale, or ground placement. Translation and uniform scale are intentionally erased. Those properties must not be claimed as later evaluation dimensions.

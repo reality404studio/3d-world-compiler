@@ -136,6 +136,10 @@ The manifest alone is detection, not execution isolation: a writable subject cou
 
 `src/evaluator/container-policy.ts` constructs and unit-tests those Docker flags. `scripts/evaluate-renderable.ts` is the image entry point and invokes the same frozen `captureRenderableScene` used by all conditions. `scripts/run-evaluator.ts` is a minimal reference launcher, not an experiment runner: it accepts only immutable `name@sha256:...` image references and has no experiment generation, scheduling, repair, or scoring logic.
 
+The PR-only GitHub Actions workflow `.github/workflows/evaluator-isolation.yml` performs the container-runtime verification on GitHub-hosted Ubuntu; local Docker is not a prerequisite. It pins third-party actions by commit SHA, builds the Dockerfile with the current candidate manifest digest, generates a valid renderable and a crafted light-injected document, and executes both through the image. It also inspects Docker's effective root/network/user/mount configuration, probes evaluator and input writes, confirms output capture, and attempts an external fetch under `network=none`.
+
+That CI build is candidate evidence, not the final trust anchor. It uses a local content-addressed image ID and does not publish or approve an image. The future human procedure still records a controlled-registry image digest built from the exact approved commit.
+
 ### Future trust-anchor procedure
 
 1. A human approves one exact environment-v0 commit; this PR does not approve or freeze it.

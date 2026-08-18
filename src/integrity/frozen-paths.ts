@@ -1,6 +1,7 @@
 export const PROPOSED_FROZEN_PATHS = Object.freeze([
   ".gitignore",
   ".dockerignore",
+  ".github/workflows/evaluator-isolation.yml",
   "README.md",
   "docs/design.md",
   "docs/freeze-checklist.md",
@@ -12,6 +13,7 @@ export const PROPOSED_FROZEN_PATHS = Object.freeze([
   "package.json",
   "protocol",
   "scripts/capture.ts",
+  "scripts/create-evaluator-test-inputs.ts",
   "scripts/evaluate-renderable.ts",
   "scripts/generate-freeze-manifest.ts",
   "scripts/io.ts",

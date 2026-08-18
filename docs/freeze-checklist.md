@@ -23,6 +23,7 @@ Do not merge, tag, or freeze automatically. A human reviewer must complete every
 - [ ] Confirm the evaluator image bakes source, lockfile dependencies, Chromium, and the approved manifest digest.
 - [ ] Confirm the trusted invocation uses an immutable image digest, read-only root, non-root user, no network, dropped capabilities, no-new-privileges, read-only input, and only one writable output bind.
 - [ ] Confirm the evaluator verifies the manifest before and after capture and rejects writable evaluator/input or non-writable output paths.
+- [ ] Confirm the `Evaluator Docker Isolation` GitHub Actions check passed on the exact PR head under review.
 - [ ] Confirm no deferred experiment/model/solver work entered scope.
 
 ## Integrity approval procedure
@@ -68,7 +69,7 @@ npm run evaluator:run -- \
 - [ ] Container networking is `none`; loopback-only viewer capture still succeeds.
 - [ ] Authored and neutral modes both invoke the same common capture implementation.
 
-If Docker is unavailable during candidate review, run the static/unit checks for exact flags, image-digest enforcement, runtime path checks, and node rejection, then leave every container-runtime checkbox above open for the human freeze review. Do not declare environment-v0 frozen on static checks alone.
+Local Docker is not required. `.github/workflows/evaluator-isolation.yml` builds and runs the actual evaluator image on every pull request and may also be invoked manually. Its successful PR check supplies candidate runtime evidence for the checkboxes above. Human freeze review must still confirm that the check belongs to the exact approved commit and must separately build/publish/record the final immutable registry digest. Do not declare environment-v0 frozen from a mutable tag or an earlier workflow run.
 
 ## Exact proposed immutable boundary
 
@@ -76,6 +77,7 @@ The machine-readable source of truth is `src/integrity/frozen-paths.ts`, expande
 
 - `.gitignore`
 - `.dockerignore`
+- `.github/workflows/evaluator-isolation.yml`
 - `README.md`
 - `docs/design.md`
 - `docs/freeze-checklist.md`
@@ -87,6 +89,7 @@ The machine-readable source of truth is `src/integrity/frozen-paths.ts`, expande
 - `package-lock.json`
 - `protocol/`
 - `scripts/capture.ts`
+- `scripts/create-evaluator-test-inputs.ts`
 - `scripts/evaluate-renderable.ts`
 - `scripts/generate-freeze-manifest.ts`
 - `scripts/io.ts`

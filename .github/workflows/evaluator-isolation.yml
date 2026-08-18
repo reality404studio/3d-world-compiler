@@ -1,0 +1,183 @@
+name: Evaluator Docker Isolation
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evaluator-isolation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evaluator-isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.18.0
+          cache: npm
+
+      - name: Install host test dependencies
+        run: npm ci
+
+      - name: Run static evaluator checks
+        run: |
+          npm run typecheck
+          npx vitest run tests/evaluator.test.ts tests/renderable.test.ts
+
+      - name: Compute candidate manifest digest
+        id: manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          digest="$(sha256sum freeze/environment-v0.manifest.json | cut -d ' ' -f 1)"
+          echo "sha256=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Build evaluator image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build \
+            --build-arg EXPECTED_MANIFEST_SHA256=${{ steps.manifest.outputs.sha256 }} \
+            --file evaluator/Dockerfile \
+            --tag environment-v0:evaluator-ci \
+            .
+          image_id="$(docker image inspect --format '{{.Id}}' environment-v0:evaluator-ci)"
+          echo "EVALUATOR_IMAGE_ID=$image_id" >> "$GITHUB_ENV"
+
+      - name: Generate evaluator test inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          inputs="$RUNNER_TEMP/evaluator-inputs"
+          node --import tsx scripts/create-evaluator-test-inputs.ts --output "$inputs"
+          echo "EVALUATOR_INPUTS=$inputs" >> "$GITHUB_ENV"
+
+      - name: Run capture and isolation tests
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          valid_output="$RUNNER_TEMP/evaluator-valid-output"
+          invalid_output="$RUNNER_TEMP/evaluator-invalid-output"
+          mkdir -p "$valid_output" "$invalid_output"
+          chmod 0777 "$valid_output" "$invalid_output"
+
+          cleanup() {
+            docker rm -f evaluator-valid evaluator-light >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          create_evaluator() {
+            local name="$1"
+            local input="$2"
+            local output="$3"
+            local material="$4"
+            docker create \
+              --name "$name" \
+              --network none \
+              --read-only \
+              --cap-drop ALL \
+              --security-opt no-new-privileges \
+              --pids-limit 256 \
+              --memory 2g \
+              --cpus 2 \
+              --user 1000:1000 \
+              --workdir /evaluator \
+              --mount "type=bind,src=$input,dst=/input/renderable.json,readonly" \
+              --mount "type=bind,src=$output,dst=/output" \
+              --env HOME=/output/.home \
+              --env TMPDIR=/output/.tmp \
+              --env XDG_CACHE_HOME=/output/.cache \
+              "$EVALUATOR_IMAGE_ID" \
+              --input /input/renderable.json \
+              --output /output \
+              --material "$material" >/dev/null
+          }
+
+          create_evaluator \
+            evaluator-valid \
+            "$EVALUATOR_INPUTS/valid.json" \
+            "$valid_output" \
+            neutral
+
+          docker inspect evaluator-valid > "$RUNNER_TEMP/evaluator-valid-inspect.json"
+          jq -e '
+            .[0].HostConfig.ReadonlyRootfs == true and
+            .[0].HostConfig.NetworkMode == "none" and
+            .[0].Config.User == "1000:1000" and
+            ([.[0].Mounts[] | select(.Destination == "/input/renderable.json" and .RW == false)] | length) == 1 and
+            ([.[0].Mounts[] | select(.Destination == "/output" and .RW == true)] | length) == 1 and
+            ([.[0].Mounts[] | select(.RW == true)] | length) == 1
+          ' "$RUNNER_TEMP/evaluator-valid-inspect.json"
+
+          docker start -a evaluator-valid | tee "$RUNNER_TEMP/evaluator-valid.log"
+          grep -q '"integrityVerifiedBeforeAndAfter": true' "$RUNNER_TEMP/evaluator-valid.log"
+
+          expected_views=(000 045 090 180 270 315)
+          for yaw in "${expected_views[@]}"; do
+            test -s "$valid_output/view-$yaw.png"
+          done
+          test "$(find "$valid_output" -maxdepth 1 -name 'view-*.png' | wc -l)" -eq 6
+
+          create_evaluator \
+            evaluator-light \
+            "$EVALUATOR_INPUTS/light-injected.json" \
+            "$invalid_output" \
+            neutral
+          set +e
+          docker start -a evaluator-light > "$RUNNER_TEMP/evaluator-light.log" 2>&1
+          light_status=$?
+          set -e
+          cat "$RUNNER_TEMP/evaluator-light.log"
+          test "$light_status" -ne 0
+          grep -q 'UNSUPPORTED_RENDERABLE_NODE' "$RUNNER_TEMP/evaluator-light.log"
+
+          if docker run --rm \
+            --network none \
+            --read-only \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --user 1000:1000 \
+            --entrypoint node \
+            "$EVALUATOR_IMAGE_ID" \
+            --input-type=module \
+            --eval 'import { writeFileSync } from "node:fs"; writeFileSync("/evaluator/.write-probe", "x");'; then
+            echo "Evaluator filesystem unexpectedly accepted a write." >&2
+            exit 1
+          fi
+
+          if docker run --rm \
+            --network none \
+            --read-only \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --user 1000:1000 \
+            --mount "type=bind,src=$EVALUATOR_INPUTS/valid.json,dst=/input/renderable.json,readonly" \
+            --entrypoint node \
+            "$EVALUATOR_IMAGE_ID" \
+            --input-type=module \
+            --eval 'import { writeFileSync } from "node:fs"; writeFileSync("/input/renderable.json", "tampered");'; then
+            echo "Read-only input unexpectedly accepted a write." >&2
+            exit 1
+          fi
+
+          docker run --rm \
+            --network none \
+            --read-only \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --user 1000:1000 \
+            --entrypoint node \
+            "$EVALUATOR_IMAGE_ID" \
+            --input-type=module \
+            --eval 'try { await fetch("https://example.com", { signal: AbortSignal.timeout(10000) }); process.exit(1); } catch { process.exit(0); }'
