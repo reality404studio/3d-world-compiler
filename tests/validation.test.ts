@@ -47,6 +47,15 @@ describe("assembly validation", () => {
     expect(codes(assembly([part]))).toContain("UNKNOWN_MATERIAL");
   });
 
+  it.each(["toString", "constructor", "__proto__"])(
+    "rejects inherited prototype material name %s",
+    (material) => {
+      const part = basePart();
+      part.material = material;
+      expect(codes(assembly([part]))).toContain("UNKNOWN_MATERIAL");
+    },
+  );
+
   it("rejects broken parent references", () => {
     const part = basePart();
     part.parent = "missing";
@@ -59,6 +68,21 @@ describe("assembly validation", () => {
     first.parent = "second";
     second.parent = "first";
     expect(codes(assembly([first, second]))).toContain("PARENT_CYCLE");
+  });
+
+  it("rejects multiple effective roots", () => {
+    expect(codes(assembly([basePart("first"), basePart("second")]))).toContain(
+      "ROOT_COUNT_INVALID",
+    );
+  });
+
+  it("allows a floating child because parenthood is hierarchy, not contact", () => {
+    const child = basePart("child");
+    child.parent = "root";
+    child.position = [4, 4, 4];
+    expect(validateAssemblyDocument(assembly([basePart("root"), child])).valid).toBe(
+      true,
+    );
   });
 
   it("rejects transform bounds violations", () => {
@@ -82,6 +106,16 @@ describe("assembly validation", () => {
   it("rejects excessive part counts", () => {
     const parts = Array.from({ length: 25 }, (_, index) => basePart(`part-${index}`));
     expect(codes(assembly(parts))).toContain("PART_LIMIT_EXCEEDED");
+  });
+
+  it("rejects assemblies over the fixed triangle budget", () => {
+    const parts = Array.from({ length: 17 }, (_, index) => {
+      const part = basePart(`capsule-${index}`);
+      part.primitive = "capsule";
+      part.parent = index === 0 ? null : "capsule-0";
+      return part;
+    });
+    expect(codes(assembly(parts))).toContain("TRIANGLE_BUDGET_EXCEEDED");
   });
 
   it("rejects duplicate ids", () => {

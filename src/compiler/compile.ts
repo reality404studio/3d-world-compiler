@@ -15,15 +15,17 @@ import type {
   BasePart,
   MirroredPart,
   PrimitiveName,
-  WorldSpec,
 } from "../types";
 import { isMirroredPart } from "../types";
 import { AssemblyValidationError, validateAssemblyDocument } from "../validation/semantic";
 import { WORLD_SPEC } from "../world";
 import { createPrimitiveGeometry } from "./primitives";
 
-function createMaterial(name: string, world: WorldSpec): MeshStandardMaterial {
-  const spec = world.allowedMaterials[name];
+function createMaterial(name: string): MeshStandardMaterial {
+  if (!Object.hasOwn(WORLD_SPEC.allowedMaterials, name)) {
+    throw new Error(`Unknown material '${name}' after validation.`);
+  }
+  const spec = WORLD_SPEC.allowedMaterials[name];
   if (!spec) throw new Error(`Unknown material '${name}' after validation.`);
   const material = new MeshStandardMaterial({
     color: spec.color,
@@ -61,9 +63,9 @@ function applyFixedMatrix(object: Object3D, matrix: Matrix4): void {
   object.matrix.copy(matrix);
 }
 
-function createBaseMesh(part: BasePart, world: WorldSpec): Mesh {
+function createBaseMesh(part: BasePart): Mesh {
   const geometry = createPrimitiveGeometry(part.primitive as PrimitiveName);
-  const mesh = new Mesh(geometry, createMaterial(part.material, world));
+  const mesh = new Mesh(geometry, createMaterial(part.material));
   mesh.name = part.id;
   mesh.userData = {
     partId: part.id,
@@ -103,9 +105,8 @@ function createMirroredMesh(
 
 export function compileAssembly(
   assembly: Assembly,
-  world: WorldSpec = WORLD_SPEC,
 ): Group {
-  const validation = validateAssemblyDocument(assembly, world);
+  const validation = validateAssemblyDocument(assembly);
   if (!validation.valid) throw new AssemblyValidationError(validation.errors);
 
   const root = new Group();
@@ -114,7 +115,7 @@ export function compileAssembly(
   const objectById = new Map<string, Mesh>();
 
   for (const part of assembly.parts) {
-    if (!isMirroredPart(part)) objectById.set(part.id, createBaseMesh(part, world));
+    if (!isMirroredPart(part)) objectById.set(part.id, createBaseMesh(part));
   }
 
   for (const part of assembly.parts) {

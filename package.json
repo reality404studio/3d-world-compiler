@@ -9,7 +9,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "validate": "node --import tsx scripts/validate.ts",
-    "capture": "node --import tsx scripts/capture.ts"
+    "capture": "node --import tsx scripts/capture.ts",
+    "freeze:manifest": "node --import tsx scripts/generate-freeze-manifest.ts",
+    "freeze:verify": "node --import tsx scripts/verify-freeze.ts"
   },
   "dependencies": {
     "ajv": "^8.20.0",

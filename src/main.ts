@@ -1,9 +1,7 @@
 import type { Group } from "three";
-import smokeAssembly from "../fixtures/smoke/assembly.json";
-import { compileAssembly } from "./compiler/compile";
 import "./style.css";
-import type { Assembly } from "./types";
-import { validateAssemblyDocument, AssemblyValidationError } from "./validation/semantic";
+import { applyMaterialPolicy, type MaterialMode } from "./materials/policy";
+import { parseRenderableScene, type RenderableScene } from "./observation/renderable";
 import {
   createFixedEnvironment,
   positionCameraForYaw,
@@ -14,7 +12,7 @@ import { normalizeCompiledObject } from "./viewer/normalize";
 declare global {
   interface Window {
     worldCompiler: {
-      loadAssembly: (assembly: Assembly) => void;
+      loadRenderable: (renderable: RenderableScene, materialMode: MaterialMode) => void;
       renderYaw: (yawDegrees: number) => void;
     };
   }
@@ -31,17 +29,14 @@ function renderYaw(yawDegrees: number): void {
   environment.renderer.render(environment.scene, environment.camera);
 }
 
-function loadAssembly(assembly: Assembly): void {
-  const validation = validateAssemblyDocument(assembly);
-  if (!validation.valid) throw new AssemblyValidationError(validation.errors);
-
+function loadRenderable(renderable: RenderableScene, materialMode: MaterialMode): void {
   if (currentObject) environment.content.remove(currentObject);
-  const compiled = compileAssembly(assembly);
-  currentObject = normalizeCompiledObject(compiled).object;
+  const conditionObject = parseRenderableScene(renderable);
+  const materialized = applyMaterialPolicy(conditionObject, materialMode);
+  currentObject = normalizeCompiledObject(materialized).object;
   environment.content.add(currentObject);
   environment.scene.updateMatrixWorld(true);
   renderYaw(0);
 }
 
-window.worldCompiler = { loadAssembly, renderYaw };
-loadAssembly(smokeAssembly as Assembly);
+window.worldCompiler = { loadRenderable, renderYaw };

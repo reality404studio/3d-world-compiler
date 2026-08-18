@@ -72,9 +72,9 @@
     "structuralRules": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["requireAtLeastOneRoot", "mirrorSourceMustBeExplicit"],
+      "required": ["requiredRootCount", "mirrorSourceMustBeExplicit"],
       "properties": {
-        "requireAtLeastOneRoot": { "const": true },
+        "requiredRootCount": { "const": 1 },
         "mirrorSourceMustBeExplicit": { "const": true }
       }
     }

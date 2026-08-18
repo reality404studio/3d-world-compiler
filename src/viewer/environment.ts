@@ -26,7 +26,7 @@ export const FIXED_ENVIRONMENT = Object.freeze({
     keyPosition: Object.freeze([3, 5, 4] as const),
   }),
   normalization: Object.freeze({ targetMaxExtent: 2.2 }),
-  captureYaws: Object.freeze([0, 45, 90, 135, 180] as const),
+  captureYaws: Object.freeze([0, 45, 90, 180, 270, 315] as const),
 });
 
 export interface FixedEnvironment {

@@ -1,12 +1,23 @@
 import path from "node:path";
 import type { Assembly } from "../src/types";
-import { captureFiveViews } from "../src/viewer/capture";
+import { compileAssembly } from "../src/compiler/compile";
+import { MATERIAL_MODES, type MaterialMode } from "../src/materials/policy";
+import { captureRenderableObject } from "../src/viewer/capture";
 import { readJsonFile, requiredPathArgument } from "./io";
 
 const input = path.resolve(
-  requiredPathArgument("Usage: npm run capture -- <assembly.json> [--output <directory>]"),
+  requiredPathArgument(
+    "Usage: npm run capture -- <assembly.json> [--material authored|neutral] [--output <directory>]",
+  ),
 );
 const outputFlag = process.argv.indexOf("--output");
+const materialFlag = process.argv.indexOf("--material");
+const materialMode = (materialFlag >= 0
+  ? process.argv[materialFlag + 1]
+  : "authored") as MaterialMode;
+if (!MATERIAL_MODES.includes(materialMode)) {
+  throw new Error("--material must be 'authored' or 'neutral'.");
+}
 const defaultName = path.basename(path.dirname(input));
 const output = path.resolve(
   outputFlag >= 0 && process.argv[outputFlag + 1]
@@ -16,7 +27,8 @@ const output = path.resolve(
 
 try {
   const assembly = (await readJsonFile(input)) as Assembly;
-  const result = await captureFiveViews(assembly, output);
+  const renderable = compileAssembly(assembly);
+  const result = await captureRenderableObject(renderable, output, { materialMode });
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 } catch (error) {
   const details =

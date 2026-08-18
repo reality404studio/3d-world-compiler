@@ -12,27 +12,23 @@ import type { PrimitiveName } from "../types";
 
 function createWedgeGeometry(): BufferGeometry {
   const geometry = new BufferGeometry();
+  const a = [-0.5, -0.5, 0.5];
+  const b = [0.5, -0.5, 0.5];
+  const c = [-0.5, 0.5, 0.5];
+  const d = [-0.5, -0.5, -0.5];
+  const e = [0.5, -0.5, -0.5];
+  const f = [-0.5, 0.5, -0.5];
+  const triangles = [
+    a, b, c,
+    f, e, d,
+    a, d, e, a, e, b,
+    a, c, f, a, f, d,
+    b, e, f, b, f, c,
+  ];
   geometry.setAttribute(
     "position",
-    new Float32BufferAttribute(
-      [
-        -0.5, -0.5, 0.5,
-        0.5, -0.5, 0.5,
-        -0.5, 0.5, 0.5,
-        -0.5, -0.5, -0.5,
-        0.5, -0.5, -0.5,
-        -0.5, 0.5, -0.5,
-      ],
-      3,
-    ),
+    new Float32BufferAttribute(triangles.flat(), 3),
   );
-  geometry.setIndex([
-    0, 1, 2,
-    5, 4, 3,
-    0, 3, 4, 0, 4, 1,
-    0, 2, 5, 0, 5, 3,
-    1, 4, 5, 1, 5, 2,
-  ]);
   geometry.computeVertexNormals();
   return geometry;
 }

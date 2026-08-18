@@ -6,7 +6,6 @@ import type {
   ValidationIssue,
   ValidationResult,
   Vec3,
-  WorldSpec,
 } from "../types";
 import { isMirroredPart } from "../types";
 import { WORLD_SPEC } from "../world";
@@ -95,17 +94,16 @@ function detectParentCycles(
 function triangleCost(
   part: AssemblyPart,
   partById: ReadonlyMap<string, AssemblyPart>,
-  world: WorldSpec,
 ): number {
   const source = isMirroredPart(part) ? partById.get(part.mirrorOf) : part;
   if (!source || isMirroredPart(source)) return 0;
-  return world.primitiveTriangleCosts[source.primitive as PrimitiveName] ?? 0;
+  return WORLD_SPEC.primitiveTriangleCosts[source.primitive as PrimitiveName] ?? 0;
 }
 
 export function validateAssemblySemantics(
   assembly: Assembly,
-  world: WorldSpec = WORLD_SPEC,
 ): ValidationResult {
+  const world = WORLD_SPEC;
   const errors: ValidationIssue[] = [];
   const partById = new Map<string, AssemblyPart>();
   const duplicateIds = new Set<string>();
@@ -165,7 +163,7 @@ export function validateAssemblySemantics(
         }),
       );
     }
-    if (!(part.material in world.allowedMaterials)) {
+    if (!Object.hasOwn(world.allowedMaterials, part.material)) {
       errors.push(
         issue("UNKNOWN_MATERIAL", `${path}/material`, "Material is not in the fixed palette.", {
           material: part.material,
@@ -214,19 +212,22 @@ export function validateAssemblySemantics(
     errors.push(...detectParentCycles(assembly.parts, partById));
   }
 
-  if (world.structuralRules.requireAtLeastOneRoot) {
-    const hasRoot = assembly.parts.some(
-      (part) => effectiveParent(part, partById) === null,
+  const rootCount = assembly.parts.filter(
+    (part) => effectiveParent(part, partById) === null,
+  ).length;
+  if (rootCount !== world.structuralRules.requiredRootCount) {
+    errors.push(
+      issue(
+        "ROOT_COUNT_INVALID",
+        "/parts",
+        "Assembly must have exactly one effective root.",
+        { actual: rootCount, required: world.structuralRules.requiredRootCount },
+      ),
     );
-    if (!hasRoot) {
-      errors.push(
-        issue("ROOT_REQUIRED", "/parts", "At least one part must resolve to a root."),
-      );
-    }
   }
 
   const triangles = assembly.parts.reduce(
-    (sum, part) => sum + triangleCost(part, partById, world),
+    (sum, part) => sum + triangleCost(part, partById),
     0,
   );
   if (triangles > world.maxTriangles) {
@@ -245,11 +246,10 @@ export function validateAssemblySemantics(
 
 export function validateAssemblyDocument(
   data: unknown,
-  world: WorldSpec = WORLD_SPEC,
 ): ValidationResult {
   const syntax = validateAssemblySyntax(data);
   if (!syntax.valid) return syntax;
-  return validateAssemblySemantics(data as Assembly, world);
+  return validateAssemblySemantics(data as Assembly);
 }
 
 export class AssemblyValidationError extends Error {

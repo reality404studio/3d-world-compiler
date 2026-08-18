@@ -56,7 +56,7 @@ export interface WorldSpec {
   maxTriangles: number;
   primitiveTriangleCosts: Record<PrimitiveName, number>;
   structuralRules: {
-    requireAtLeastOneRoot: boolean;
+    requiredRootCount: 1;
     mirrorSourceMustBeExplicit: boolean;
   };
 }

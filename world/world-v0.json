@@ -37,7 +37,7 @@
     "tube": 48
   },
   "structuralRules": {
-    "requireAtLeastOneRoot": true,
+    "requiredRootCount": 1,
     "mirrorSourceMustBeExplicit": true
   }
 }

@@ -3,8 +3,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { createServer } from "vite";
-import type { Assembly } from "../types";
-import { validateAssemblyDocument, AssemblyValidationError } from "../validation/semantic";
+import type { Object3D } from "three";
+import type { MaterialMode } from "../materials/policy";
+import {
+  serializeRenderableObject,
+  type RenderableScene,
+} from "../observation/renderable";
 import { FIXED_ENVIRONMENT } from "./environment";
 
 const PROJECT_ROOT = fileURLToPath(new URL("../..", import.meta.url));
@@ -12,14 +16,31 @@ const PROJECT_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 export interface CaptureResult {
   outputDirectory: string;
   files: string[];
+  materialMode: MaterialMode;
 }
 
-export async function captureFiveViews(
-  assembly: Assembly,
+export interface CaptureOptions {
+  materialMode?: MaterialMode;
+}
+
+export async function captureRenderableObject(
+  object: Object3D,
   outputDirectory: string,
+  options: CaptureOptions = {},
 ): Promise<CaptureResult> {
-  const validation = validateAssemblyDocument(assembly);
-  if (!validation.valid) throw new AssemblyValidationError(validation.errors);
+  return captureRenderableScene(
+    serializeRenderableObject(object),
+    outputDirectory,
+    options,
+  );
+}
+
+export async function captureRenderableScene(
+  renderable: RenderableScene,
+  outputDirectory: string,
+  options: CaptureOptions = {},
+): Promise<CaptureResult> {
+  const materialMode = options.materialMode ?? "authored";
 
   const absoluteOutput = path.resolve(outputDirectory);
   await mkdir(absoluteOutput, { recursive: true });
@@ -37,9 +58,10 @@ export async function captureFiveViews(
     throw new Error("Vite did not expose a local capture URL.");
   }
 
-  const browser = await chromium.launch({ headless: true });
+  let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
   const files: string[] = [];
   try {
+    browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({
       viewport: {
         width: FIXED_ENVIRONMENT.width,
@@ -49,7 +71,10 @@ export async function captureFiveViews(
     });
     await page.goto(baseUrl, { waitUntil: "networkidle" });
     await page.waitForFunction(() => Boolean(window.worldCompiler));
-    await page.evaluate((document) => window.worldCompiler.loadAssembly(document), assembly);
+    await page.evaluate(
+      ({ document, mode }) => window.worldCompiler.loadRenderable(document, mode),
+      { document: renderable, mode: materialMode },
+    );
 
     const canvas = page.locator("canvas");
     for (const yaw of FIXED_ENVIRONMENT.captureYaws) {
@@ -60,9 +85,9 @@ export async function captureFiveViews(
       files.push(outputPath);
     }
   } finally {
-    await browser.close();
+    await browser?.close();
     await server.close();
   }
 
-  return { outputDirectory: absoluteOutput, files };
+  return { outputDirectory: absoluteOutput, files, materialMode };
 }
