@@ -10,6 +10,7 @@
     "test": "vitest run",
     "validate": "node --import tsx scripts/validate.ts",
     "capture": "node --import tsx scripts/capture.ts",
+    "evaluator:run": "node --import tsx scripts/run-evaluator.ts",
     "freeze:manifest": "node --import tsx scripts/generate-freeze-manifest.ts",
     "freeze:verify": "node --import tsx scripts/verify-freeze.ts"
   },

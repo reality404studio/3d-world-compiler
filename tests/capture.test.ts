@@ -2,8 +2,23 @@ import { mkdtemp, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { BoxGeometry, Group, Mesh, MeshStandardMaterial } from "three";
-import { captureRenderableObject } from "../src/viewer/capture";
+import {
+  AmbientLight,
+  BoxGeometry,
+  DirectionalLight,
+  Group,
+  Mesh,
+  MeshStandardMaterial,
+} from "three";
+import {
+  RENDERABLE_VERSION,
+  UNSUPPORTED_RENDERABLE_NODE,
+  type RenderableScene,
+} from "../src/observation/renderable";
+import {
+  captureRenderableObject,
+  captureRenderableScene,
+} from "../src/viewer/capture";
 import { FIXED_ENVIRONMENT } from "../src/viewer/environment";
 
 describe("headless six-view capture", () => {
@@ -33,5 +48,21 @@ describe("headless six-view capture", () => {
     for (const file of result.files) {
       expect((await stat(file)).size).toBeGreaterThan(1000);
     }
+  });
+
+  it("rejects a direct light before the observation apparatus starts", async () => {
+    await expect(
+      captureRenderableObject(new DirectionalLight(), "/not-created"),
+    ).rejects.toMatchObject({ code: UNSUPPORTED_RENDERABLE_NODE });
+  });
+
+  it("rejects a crafted serialized light before the observation apparatus starts", async () => {
+    const crafted = {
+      version: RENDERABLE_VERSION,
+      object: new AmbientLight().toJSON(),
+    } as RenderableScene;
+    await expect(captureRenderableScene(crafted, "/not-created")).rejects.toMatchObject(
+      { code: UNSUPPORTED_RENDERABLE_NODE },
+    );
   });
 });

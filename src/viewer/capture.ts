@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
@@ -6,6 +6,7 @@ import { createServer } from "vite";
 import type { Object3D } from "three";
 import type { MaterialMode } from "../materials/policy";
 import {
+  parseRenderableScene,
   serializeRenderableObject,
   type RenderableScene,
 } from "../observation/renderable";
@@ -42,11 +43,18 @@ export async function captureRenderableScene(
 ): Promise<CaptureResult> {
   const materialMode = options.materialMode ?? "authored";
 
+  // Parse and validate once in the trusted Node process before any browser or
+  // output side effects. The browser repeats this check when it loads the same
+  // document, so a serialized document cannot bypass renderable-v0 policy.
+  parseRenderableScene(renderable);
+
   const absoluteOutput = path.resolve(outputDirectory);
+  const viteCacheDirectory = path.join(absoluteOutput, ".vite-cache");
   await mkdir(absoluteOutput, { recursive: true });
 
   const server = await createServer({
     root: PROJECT_ROOT,
+    cacheDir: viteCacheDirectory,
     logLevel: "silent",
     server: { host: "127.0.0.1", port: 0, strictPort: false },
   });
@@ -61,7 +69,10 @@ export async function captureRenderableScene(
   let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
   const files: string[] = [];
   try {
-    browser = await chromium.launch({ headless: true });
+    browser = await chromium.launch({
+      headless: true,
+      args: ["--disable-dev-shm-usage"],
+    });
     const page = await browser.newPage({
       viewport: {
         width: FIXED_ENVIRONMENT.width,
@@ -87,6 +98,7 @@ export async function captureRenderableScene(
   } finally {
     await browser?.close();
     await server.close();
+    await rm(viteCacheDirectory, { recursive: true, force: true });
   }
 
   return { outputDirectory: absoluteOutput, files, materialMode };

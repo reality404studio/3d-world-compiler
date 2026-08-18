@@ -129,7 +129,18 @@ describe("deterministic compiler", () => {
     const source = new Group();
     const sourceMaterial = new MeshStandardMaterial({ color: "#ff0000" });
     const sourceMesh = new Mesh(new BoxGeometry(1, 1, 1), sourceMaterial);
+    sourceMesh.position.set(0.25, -0.5, 0.75);
+    sourceMesh.rotation.set(0.1, 0.2, 0.3);
+    sourceMesh.scale.set(1.5, 0.75, 2);
+    sourceMesh.updateMatrix();
     source.add(sourceMesh);
+    const nested = new Group();
+    const nestedMesh = new Mesh(
+      new BoxGeometry(0.25, 0.5, 0.75),
+      new MeshStandardMaterial({ color: "#0000ff" }),
+    );
+    nested.add(nestedMesh);
+    source.add(nested);
 
     const evaluated = applyMaterialPolicy(source, "neutral");
     const evaluatedMesh = evaluated.children[0] as Mesh<
@@ -138,6 +149,14 @@ describe("deterministic compiler", () => {
     >;
 
     expect(evaluatedMesh.geometry).toBe(sourceMesh.geometry);
+    expect(evaluatedMesh.position.toArray()).toEqual(sourceMesh.position.toArray());
+    expect(evaluatedMesh.scale.toArray()).toEqual(sourceMesh.scale.toArray());
+    for (let index = 0; index < sourceMesh.matrix.elements.length; index += 1) {
+      expect(evaluatedMesh.matrix.elements[index]).toBeCloseTo(
+        sourceMesh.matrix.elements[index]!,
+        14,
+      );
+    }
     expect(sourceMesh.material).toBe(sourceMaterial);
     expect(evaluatedMesh.material).not.toBe(sourceMaterial);
     expect(`#${evaluatedMesh.material.color.getHexString()}`).toBe(
@@ -145,6 +164,12 @@ describe("deterministic compiler", () => {
     );
     expect(evaluatedMesh.material.roughness).toBe(NEUTRAL_MATERIAL_SPEC.roughness);
     expect(evaluatedMesh.material.metalness).toBe(NEUTRAL_MATERIAL_SPEC.metalness);
+    const evaluatedNestedMesh = (evaluated.children[1] as Group).children[0] as Mesh<
+      BoxGeometry,
+      MeshStandardMaterial
+    >;
+    expect(evaluatedNestedMesh.geometry).toBe(nestedMesh.geometry);
+    expect(evaluatedNestedMesh.material).toBe(evaluatedMesh.material);
   });
 
   it("cannot expand the frozen world through a custom WorldSpec argument", () => {

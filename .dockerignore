@@ -1,0 +1,7 @@
+.git
+.DS_Store
+captures
+coverage
+dist
+node_modules
+npm-debug.log

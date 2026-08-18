@@ -41,7 +41,9 @@ assembly -> schema/semantic validation -> frozen world-v0 compiler -> Object3D
          -> COMMON renderable serialization/material policy/normalization/viewer/capture
 ```
 
-The common path starts at condition-independent Three.js `Object3D` content. `captureRenderableObject` serializes that content into the minimal `renderable-v0` transport, and the browser applies the same material policy, normalization, environment, cameras, resolution, and capture code.
+The common path starts at condition-independent static Three.js content governed by `renderable-v0`. Its node allowlist is deliberately minimal: exact `Object3D`, `Group`, and `Mesh` instances only. Mesh geometry may contain arbitrary triangles and is not restricted to the C2 primitive DSL. `Scene`, every light and camera class, `Sprite`, `Points`, line classes, `LOD`, audio classes, and every other `Object3D` subclass are rejected with `UNSUPPORTED_RENDERABLE_NODE`.
+
+`captureRenderableObject` validates the live graph before serialization. Serialized documents are checked for allowed declared node types, parsed, and then checked again by exact runtime prototype/type before entering the browser; the browser repeats the parse-and-check. This prevents a crafted document or a condition-owned light/camera from entering the observation apparatus. After acceptance, the browser applies the same material policy, normalization, environment, cameras, resolution, and capture code.
 
 Future C0/C1 implementations may construct an `Object3D` and call the same frozen entry point. They do not need to modify viewer or capture files, and they are not forced through the assembly DSL. C0/C1 generation is deliberately not implemented here.
 
@@ -100,6 +102,28 @@ npm run freeze:verify -- --expect <approved-manifest-sha256>
 ```
 
 Any mismatch exits non-zero and returns `FROZEN_ENVIRONMENT_MODIFIED`. Do not run `freeze:manifest` during an experiment; it is a review-time candidate regeneration command only.
+
+## Trusted evaluator container
+
+The SHA-256 manifest supplies integrity evidence; it cannot prevent a subject from modifying and restoring a writable evaluator during capture. `evaluator/Dockerfile` therefore bakes the evaluator source, lockfile dependencies, Chromium, and approved manifest digest into a dedicated image. The image runs non-root, makes evaluator source and `node_modules` non-writable, verifies the manifest inside the image before and after capture, and refuses to start unless evaluator root/input are read-only and output is writable.
+
+`npm run evaluator:run` is the reference launcher. It requires an immutable registry digest and applies a read-only root filesystem, no network, dropped capabilities, no-new-privileges, a read-only single-file input mount, and one writable output mount. Browser/cache temporary paths are kept under that output mount.
+
+```bash
+docker build \
+  --build-arg EXPECTED_MANIFEST_SHA256=<approved-manifest-sha256> \
+  -f evaluator/Dockerfile \
+  -t registry.example/environment-v0:approved .
+
+# Push the image, obtain its registry digest, and record that digest externally.
+npm run evaluator:run -- \
+  --image registry.example/environment-v0@sha256:<approved-image-digest> \
+  --input /absolute/path/renderable.json \
+  --output /absolute/path/captures \
+  --material neutral
+```
+
+The trusted experiment runner—not the subject workspace—must own this invocation and its recorded digest. This is only the evaluator execution boundary; no experiment scheduling, C0/C1 generation, repair, or scoring is implemented.
 
 ## Normalization policy
 

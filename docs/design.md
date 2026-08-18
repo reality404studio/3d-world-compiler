@@ -4,7 +4,7 @@
 
 World-v0 is a small symbolic language whose invalid C2/C3 states are rejected before rendering. Natural-language requests are not enforcement. The assembly schema, semantic validator, and compiler define what C2/C3 can represent.
 
-The observation apparatus is condition-independent and begins with static Three.js `Object3D` content:
+The observation apparatus is condition-independent and begins with static Three.js content satisfying `renderable-v0`:
 
 ```text
 C2/C3: assembly -> validate -> frozen compile -> Object3D --+
@@ -16,6 +16,14 @@ renderable-v0 -> frozen material policy -> normalization
 ```
 
 `src/observation/renderable.ts`, `src/materials/policy.ts`, and `src/viewer/` are the common boundary. `src/main.ts` imports no assembly compiler. Future conditions can enter through `captureRenderableObject` or `captureRenderableScene` without modifying common frozen files. C0/C1 generation is not implemented.
+
+### renderable-v0 node policy
+
+The policy accepts only exact `Object3D`, `Group`, and `Mesh` nodes. It rejects `Scene`, all `Light` and `Camera` subclasses, `Sprite`, `Points`, `Line`, `LineSegments`, `LOD`, audio-related nodes, custom subclasses, and every other unsupported `Object3D` subclass with `UNSUPPORTED_RENDERABLE_NODE`. This is a static-asset boundary, not a general Three.js scene-graph boundary.
+
+The node restriction does not constrain mesh geometry to world-v0 primitives. A permitted `Mesh` may contain arbitrary triangle geometry, which leaves a future C0/C1 path without expanding the environment controls available to any condition.
+
+For direct objects, exact prototypes and matching node types are checked before serialization. For documents, serialized declared types are screened, Three.js parses the document, and exact parsed prototypes/types are checked again. Capture performs this in the trusted Node process before output/browser side effects, and the browser repeats document parsing and validation. A parser fallback cannot convert a declared unsupported type into an accepted generic node, and a crafted document cannot inject condition-owned lighting or cameras.
 
 ## Coordinate system and transforms
 
@@ -56,12 +64,12 @@ The source must be explicit. The mirror inherits source primitive, geometry, mat
 
 Geometry belongs to the condition-produced `Object3D`. The C2/C3 compiler assigns only materials declared by frozen world-v0. Own-property membership is required, so `toString`, `constructor`, and `__proto__` are invalid unless a future reviewed world explicitly declares them.
 
-The material-policy layer provides:
+The material-policy layer operates only after the renderable node policy succeeds and provides:
 
 - `authored`: preserve condition materials;
 - `neutral`: clone the object hierarchy and replace every mesh material with one frozen neutral material (`#b8b8b8`, roughness `0.8`, metalness `0`) while retaining the same geometry references.
 
-Lighting, camera, background, resolution, and rendering settings remain exclusively in `src/viewer/environment.ts`. Neutral mode makes geometry-only observation possible without editing geometry or environment code.
+Lighting, camera, background, resolution, and rendering settings remain exclusively in `src/viewer/environment.ts`. Neutral mode replaces every permitted rendered `Mesh` material while preserving geometry references, hierarchy, and local transforms. This makes geometry-only observation possible without editing geometry or environment code.
 
 ## Frozen world binding
 
@@ -109,15 +117,40 @@ All six views use radius 5, elevation 20 degrees, orthographic half-extent 1.65,
 
 The set exposes both lateral sides and opposing diagonals while keeping camera type, elevation, framing, lighting, resolution, and normalization identical. Undersides remain a documented blind spot. Pixel identity across OS/GPU stacks is not claimed; all conditions must initially run in one pinned execution image.
 
-## Integrity trust boundary
+## Integrity evidence and evaluator enforcement
 
 `freeze/environment-v0.manifest.json` deterministically records raw SHA-256, byte size, protected paths, and the exact file set. Verification re-enumerates protected directories, so modifications, deletion, and unapproved additions produce `FROZEN_ENVIRONMENT_MODIFIED`.
 
-The manifest is protected by an external expected SHA-256 supplied to the verifier. This external digest must be stored outside the subject-writable checkout and used before and after execution. The manifest is not self-listed because self-hashing is impossible; its external digest is the trust anchor. This PR supplies the mechanism only, not a full experiment runner, read-only mount, or container policy.
+The manifest is protected by an external expected SHA-256 supplied to the verifier. This external digest must be stored outside the subject-writable checkout and used before and after execution. The manifest is not self-listed because self-hashing is impossible; its external digest is the integrity trust anchor.
+
+The manifest alone is detection, not execution isolation: a writable subject could modify, capture, restore, and then pass a final hash check. The dedicated evaluator image in `evaluator/Dockerfile` supplies the separate enforcement boundary:
+
+- evaluator code, exact lockfile dependencies, and Chromium are baked into the image;
+- the approved manifest digest is required at build time and retained in image configuration;
+- the image verifies the frozen manifest before and after capture;
+- evaluator source and `node_modules` are non-writable and the runtime root filesystem is read-only;
+- the process runs non-root with dropped capabilities and no-new-privileges;
+- the subject artifact is one read-only file mount;
+- the capture output is the only writable host bind mount, and runtime scratch/cache stays below it;
+- the container network namespace is disabled while loopback remains available for the in-container viewer.
+
+`src/evaluator/container-policy.ts` constructs and unit-tests those Docker flags. `scripts/evaluate-renderable.ts` is the image entry point and invokes the same frozen `captureRenderableScene` used by all conditions. `scripts/run-evaluator.ts` is a minimal reference launcher, not an experiment runner: it accepts only immutable `name@sha256:...` image references and has no experiment generation, scheduling, repair, or scoring logic.
+
+### Future trust-anchor procedure
+
+1. A human approves one exact environment-v0 commit; this PR does not approve or freeze it.
+2. Build the evaluator image from that exact commit and pass the externally approved manifest SHA-256 as `EXPECTED_MANIFEST_SHA256`.
+3. Push/record the immutable OCI image digest outside every subject-writable workspace.
+4. A trusted experiment runner outside the subject workspace invokes only that approved image digest with the fixed container policy.
+5. Mount exactly one input `renderable-v0` artifact read-only.
+6. Mount only the capture output directory writable; keep runtime scratch beneath it.
+7. Require a read-only root filesystem and disabled network for every invocation.
+
+The immutable image/read-only execution boundary is enforcement. The SHA-256 manifest and external manifest digest are independent integrity evidence. Neither replaces the other.
 
 ## Adversarial-review disposition
 
-Fixed in code: shared renderable boundary, integrity verification, prototype-safe materials, frozen-world compiler binding, neutral material policy, exactly one root, wedge hard normals, and six bilateral views.
+Fixed in code: shared renderable boundary, exact renderable-v0 node allowlist with serialized-bypass checks, subject-inaccessible evaluator-container policy, integrity verification, prototype-safe materials, frozen-world compiler binding, neutral material policy, exactly one root, wedge hard normals, and six bilateral views.
 
 Converted into explicit limitations: parenthood does not imply contact; per-object normalization removes absolute/cross-asset scale and grounding; transformed AABB and underside/cross-platform raster blind spots remain fixed policies.
 

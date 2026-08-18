@@ -2,10 +2,12 @@
   "version": "environment-v0-integrity-v1",
   "algorithm": "sha256",
   "protectedPaths": [
+    ".dockerignore",
     ".gitignore",
     "README.md",
     "docs/design.md",
     "docs/freeze-checklist.md",
+    "evaluator/Dockerfile",
     "fixtures/invalid",
     "fixtures/smoke/assembly.json",
     "index.html",
@@ -13,11 +15,14 @@
     "package.json",
     "protocol",
     "scripts/capture.ts",
+    "scripts/evaluate-renderable.ts",
     "scripts/generate-freeze-manifest.ts",
     "scripts/io.ts",
+    "scripts/run-evaluator.ts",
     "scripts/validate.ts",
     "scripts/verify-freeze.ts",
     "src/compiler",
+    "src/evaluator",
     "src/integrity",
     "src/main.ts",
     "src/materials",
@@ -34,24 +39,34 @@
   ],
   "files": [
     {
+      "path": ".dockerignore",
+      "sha256": "f9b539a90bb2c5d5b020a9659643960a4d7620f0cec5a37a2fd44a3372529937",
+      "size": 65
+    },
+    {
       "path": ".gitignore",
       "sha256": "89fe5a9d2e207af73baafd1f2179583a589a72eff91eea41e0dbe694a832d127",
       "size": 50
     },
     {
       "path": "README.md",
-      "sha256": "a3489a4e27d83c29f03d6b2d284aa8c3aa329ec78d3570a05e743785212e0439",
-      "size": 6054
+      "sha256": "d44e286c5712e1363c23aee101a2a5b223b75e8bb99a9ec34a8c56b307a0394b",
+      "size": 8320
     },
     {
       "path": "docs/design.md",
-      "sha256": "70c6cebe9f6a33d4a2c2ea1114822fc99dc414b8df97a673340646aa9a7ef2c9",
-      "size": 8158
+      "sha256": "a49f8aa64ac8c5d3ad1ffa2115a8cc14a4a57dc4d59170957606fc47aff35948",
+      "size": 11859
     },
     {
       "path": "docs/freeze-checklist.md",
-      "sha256": "9c12669237d36f4d5e11819b3c1f7d8d42e2abf7859d82e873f8497fd6e1f957",
-      "size": 3920
+      "sha256": "bbcefcafb86d27fd66806e45b9bbfd467a254ace3db1f798bf72a286cc72a77e",
+      "size": 6756
+    },
+    {
+      "path": "evaluator/Dockerfile",
+      "sha256": "405af22883f9896da61fe1c3f2160f4a4679f516e5783e6d4aee6015f23823dc",
+      "size": 593
     },
     {
       "path": "fixtures/invalid/bad-rotation.json",
@@ -105,8 +120,8 @@
     },
     {
       "path": "package.json",
-      "sha256": "2261b1e90fe9e61d89f2068332175dbbad5b018b6bb616730a5e6e5bc9fea7c9",
-      "size": 781
+      "sha256": "ea841043d0a1f9e628682458a4fc16d6f3490bf08c1c518d04e37e914da41e3b",
+      "size": 848
     },
     {
       "path": "protocol/assembly.schema.json",
@@ -124,6 +139,11 @@
       "size": 1761
     },
     {
+      "path": "scripts/evaluate-renderable.ts",
+      "sha256": "aa96979964ca1b1e163dc1bf01f6abbfc2b616bd2b5711b076da877b11bf22d4",
+      "size": 3081
+    },
+    {
       "path": "scripts/generate-freeze-manifest.ts",
       "sha256": "1817300e704f5c5e81d378c75e63ec0dff721c416b11124742860ed83a67c872",
       "size": 913
@@ -132,6 +152,11 @@
       "path": "scripts/io.ts",
       "sha256": "6e01ba38c859b7a1f1f6e861fe966b7ecb818d18419aa1b52ebc25a186a4bdd5",
       "size": 421
+    },
+    {
+      "path": "scripts/run-evaluator.ts",
+      "sha256": "039cacaeff8779e90a61c49fcddac8d3b4d1df1ffbc519ff918657b514a8cf45",
+      "size": 1892
     },
     {
       "path": "scripts/validate.ts",
@@ -154,9 +179,19 @@
       "size": 1931
     },
     {
+      "path": "src/evaluator/container-policy.ts",
+      "sha256": "2e78de5e8993690dd285cb80b7370f84767330234984fa32d30d60781108be8b",
+      "size": 1905
+    },
+    {
+      "path": "src/evaluator/runtime-isolation.ts",
+      "sha256": "c035b8c7e12b40943d2b02d098783c94b3ee0986314803f2357ccf23fa863050",
+      "size": 1202
+    },
+    {
       "path": "src/integrity/frozen-paths.ts",
-      "sha256": "c2c5bb119a8688bbab3a62b30030576f8af1c6a32aba1787b20f4dc072404461",
-      "size": 673
+      "sha256": "b1fbacb3283db8988fbb4012b1e7101f914851540b9ed6446fcb2327de5190c4",
+      "size": 803
     },
     {
       "path": "src/integrity/verify.ts",
@@ -175,8 +210,8 @@
     },
     {
       "path": "src/observation/renderable.ts",
-      "sha256": "8abf2f833321313716db9771b246604df952f6b0ad6b296bdea1e407cf7446f4",
-      "size": 788
+      "sha256": "9c69050963f13c7ae483abcb6d3a53ba16a9037c93221a15831b1ddc0b13f553",
+      "size": 6274
     },
     {
       "path": "src/style.css",
@@ -200,8 +235,8 @@
     },
     {
       "path": "src/viewer/capture.ts",
-      "sha256": "3860319a4c89645aafcaf0dc36ce80f404061620fb5da35d44e8ac2442a02311",
-      "size": 2840
+      "sha256": "5fe3ddf81ff2dcb3a08d2be0aff45f84bfe8f614ebc88cfe00fef33f348de2fd",
+      "size": 3365
     },
     {
       "path": "src/viewer/environment.ts",
@@ -220,18 +255,28 @@
     },
     {
       "path": "tests/capture.test.ts",
-      "sha256": "3b80b3d845d4dc5b21b771d403fdae91e0a3fcd9b1ae4288591deff8fe8ee382",
-      "size": 1310
+      "sha256": "28c5f42f567d1a3c306ad33506cb9e3d6cd9e04a8b10f4660b9137a133a167e5",
+      "size": 2130
     },
     {
       "path": "tests/compiler.test.ts",
-      "sha256": "67385ea12f35c655aa69eb5acf740b890a3590bb492e1053859bac90397b78ac",
-      "size": 7497
+      "sha256": "944aa9a0fbc486d44b7195ee024ce241956b4269260a8dbc01f4f8dc88b1024f",
+      "size": 8535
+    },
+    {
+      "path": "tests/evaluator.test.ts",
+      "sha256": "5fa58cbd77bc45edcb989104f278a3181c27cf4b3bc057beb6ccb5665f924c4e",
+      "size": 3923
     },
     {
       "path": "tests/integrity.test.ts",
       "sha256": "484e03d8e0cfc398ecf5b4725085f69d93dc006be4ef6563a1a67a14cacb96fe",
       "size": 3347
+    },
+    {
+      "path": "tests/renderable.test.ts",
+      "sha256": "b2d0470b8cfe6d6bb4f54b3b4b5c7d2fb6d1637fce3c7d02b4a88b553b2b6543",
+      "size": 4024
     },
     {
       "path": "tests/validation.test.ts",
