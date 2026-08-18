@@ -1,0 +1,20 @@
+{
+  "version": "1.0",
+  "parts": [
+    {
+      "id": "left",
+      "primitive": "wedge",
+      "parent": null,
+      "position": [-1, 0, 0],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "material": "teal"
+    },
+    {
+      "id": "right",
+      "mirrorOf": "left",
+      "axis": "diagonal",
+      "material": "coral"
+    }
+  ]
+}

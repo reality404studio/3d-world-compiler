@@ -1,0 +1,23 @@
+{
+  "version": "1.0",
+  "parts": [
+    {
+      "id": "first",
+      "primitive": "box",
+      "parent": null,
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "material": "clay"
+    },
+    {
+      "id": "second",
+      "primitive": "sphere",
+      "parent": null,
+      "position": [2, 0, 0],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "material": "slate"
+    }
+  ]
+}

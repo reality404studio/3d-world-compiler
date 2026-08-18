@@ -1,0 +1,30 @@
+{
+  "name": "3d-world-compiler",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "validate": "node --import tsx scripts/validate.ts",
+    "capture": "node --import tsx scripts/capture.ts",
+    "evaluator:run": "node --import tsx scripts/run-evaluator.ts",
+    "freeze:manifest": "node --import tsx scripts/generate-freeze-manifest.ts",
+    "freeze:verify": "node --import tsx scripts/verify-freeze.ts"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/three": "^0.185.4",
+    "playwright": "^1.62.1",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1",
+    "vitest": "^4.1.10"
+  }
+}

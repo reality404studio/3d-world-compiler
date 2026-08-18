@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "parts": [
+    {
+      "id": "bad",
+      "primitive": "box",
+      "parent": null,
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "material": "invented"
+    }
+  ]
+}
