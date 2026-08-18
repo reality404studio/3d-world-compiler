@@ -1,0 +1,88 @@
+name: Publish environment-v0 evaluator
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  FROZEN_ENVIRONMENT_COMMIT: 91501a2e90d5d550acff01c3255f72c650ba1c03
+  EXPECTED_MANIFEST_SHA256: 315d5a625e53c0cd9f01d63eba6f206ffd349f74ebf824d14634de7d9c2428f9
+  IMAGE_NAME: ghcr.io/reality404studio/3d-world-compiler-evaluator
+  IMAGE_TAG: environment-v0
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out the frozen environment
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ env.FROZEN_ENVIRONMENT_COMMIT }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify frozen commit and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          actual_commit="$(git rev-parse HEAD)"
+          test "$actual_commit" = "$FROZEN_ENVIRONMENT_COMMIT"
+          test -z "$(git status --porcelain --untracked-files=all)"
+
+          printf '%s  %s\n' \
+            "$EXPECTED_MANIFEST_SHA256" \
+            freeze/environment-v0.manifest.json \
+            | sha256sum --check --strict -
+
+      - name: Log in to GitHub Container Registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "${{ secrets.GITHUB_TOKEN }}" \
+            | docker login ghcr.io \
+                --username "${{ github.actor }}" \
+                --password-stdin
+
+      - name: Build and push the frozen evaluator image
+        id: publish
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          image_ref="$IMAGE_NAME:$IMAGE_TAG"
+          docker build \
+            --build-arg "EXPECTED_MANIFEST_SHA256=$EXPECTED_MANIFEST_SHA256" \
+            --file evaluator/Dockerfile \
+            --tag "$image_ref" \
+            .
+
+          docker push "$image_ref" 2>&1 | tee "$RUNNER_TEMP/docker-push.log"
+          digest="$(sed -nE 's/.*digest: (sha256:[0-9a-f]{64}).*/\1/p' \
+            "$RUNNER_TEMP/docker-push.log" | tail -n 1)"
+
+          if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Could not determine the pushed image digest." >&2
+            exit 1
+          fi
+
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Write publication summary
+        shell: bash
+        env:
+          PUBLISHED_DIGEST: ${{ steps.publish.outputs.digest }}
+        run: |
+          set -euo pipefail
+          {
+            echo '## Published environment-v0 evaluator'
+            echo
+            echo "- Image: \`$IMAGE_NAME@$PUBLISHED_DIGEST\`"
+            echo "- Frozen environment commit: \`$FROZEN_ENVIRONMENT_COMMIT\`"
+            echo "- Manifest SHA-256: \`$EXPECTED_MANIFEST_SHA256\`"
+          } >> "$GITHUB_STEP_SUMMARY"
