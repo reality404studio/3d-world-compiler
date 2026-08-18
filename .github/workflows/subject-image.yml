@@ -1,0 +1,218 @@
+name: Subject Image Runtime and Publication
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/subject-image.yml"
+      - "experiments/subjects/**"
+  push:
+    branches:
+      - experiment/gemini-pilot-v0
+    paths:
+      - ".github/workflows/subject-image.yml"
+      - "experiments/subjects/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: subject-image-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE_NAME: ghcr.io/reality404studio/3d-world-compiler-subject
+  LOCAL_IMAGE: 3d-world-compiler-subject:runtime-test
+  GEMINI_API_KEY: host-secret-must-not-enter-subject
+  HOST_SECRET_SENTINEL: host-secret-must-not-enter-subject
+
+jobs:
+  verify-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Build exact subject image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build \
+            --file experiments/subjects/Dockerfile \
+            --tag "$LOCAL_IMAGE" \
+            experiments/subjects
+          image_id="$(docker image inspect --format '{{.Id}}' "$LOCAL_IMAGE")"
+          test "$image_id" = "sha256:$(docker image inspect --format '{{.Id}}' "$LOCAL_IMAGE" | cut -d: -f2)"
+          echo "SUBJECT_IMAGE_ID=$image_id" >> "$GITHUB_ENV"
+
+      - name: Verify subject runtime boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          fixture_root="$RUNNER_TEMP/subject-fixtures"
+          mkdir -p "$fixture_root"
+
+          cleanup() {
+            docker rm -f \
+              subject-valid \
+              subject-network \
+              subject-isolation \
+              subject-light \
+              subject-camera \
+              subject-scene \
+              subject-timeout >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          prepare_fixture() {
+            local name="$1"
+            local source="$2"
+            local directory="$fixture_root/$name"
+            mkdir -p "$directory/input" "$directory/output"
+            cp "$source" "$directory/input/subject.mjs"
+            chmod 0444 "$directory/input/subject.mjs"
+            chmod 0777 "$directory/output"
+          }
+
+          create_subject() {
+            local name="$1"
+            local directory="$2"
+            docker create \
+              --name "$name" \
+              --network none \
+              --read-only \
+              --cap-drop ALL \
+              --security-opt no-new-privileges \
+              --pids-limit 64 \
+              --memory 512m \
+              --cpus 1 \
+              --user 1000:1000 \
+              --tmpfs /tmp:rw,noexec,nosuid,size=32m \
+              --mount "type=bind,src=$directory/input,dst=/input,readonly" \
+              --mount "type=bind,src=$directory/output,dst=/output" \
+              "$SUBJECT_IMAGE_ID" >/dev/null
+          }
+
+          run_success() {
+            local name="$1"
+            local fixture="$2"
+            local source="experiments/subjects/fixtures/$fixture.mjs"
+            local directory="$fixture_root/$fixture"
+            prepare_fixture "$fixture" "$source"
+            create_subject "$name" "$directory"
+            docker inspect "$name" > "$directory/inspect.json"
+            jq -e '
+              .[0].HostConfig.ReadonlyRootfs == true and
+              .[0].HostConfig.NetworkMode == "none" and
+              .[0].Config.User == "1000:1000" and
+              ([.[0].Mounts[] | select(.Destination == "/input" and .RW == false)] | length) == 1 and
+              ([.[0].Mounts[] | select(.Destination == "/output" and .RW == true)] | length) == 1 and
+              ([.[0].Config.Env[] | select(startswith("GEMINI_API_KEY=") or startswith("HOST_SECRET_SENTINEL="))] | length) == 0
+            ' "$directory/inspect.json"
+            docker start -a "$name" \
+              > "$directory/stdout.log" \
+              2> "$directory/stderr.log"
+            jq -e '.status == "SUCCESS"' "$directory/output/execution-result.json"
+            jq -e '.version == "renderable-v0"' "$directory/output/renderable.json"
+          }
+
+          run_rejected() {
+            local name="$1"
+            local fixture="$2"
+            local directory="$fixture_root/$fixture"
+            prepare_fixture \
+              "$fixture" \
+              "experiments/subjects/fixtures/$fixture.mjs"
+            create_subject "$name" "$directory"
+            set +e
+            docker start -a "$name" \
+              > "$directory/stdout.log" \
+              2> "$directory/stderr.log"
+            local status=$?
+            set -e
+            test "$status" -ne 0
+            jq -e \
+              '.status == "UNSUPPORTED_RENDERABLE_NODE"' \
+              "$directory/output/execution-result.json"
+            test ! -e "$directory/output/renderable.json"
+          }
+
+          run_success subject-valid valid
+          jq -e '.object.object.type == "Group"' \
+            "$fixture_root/valid/output/renderable.json"
+
+          run_success subject-network network-blocked
+          run_success subject-isolation runtime-isolation
+          test -s "$fixture_root/runtime-isolation/output/subject-write-probe"
+
+          run_rejected subject-light unsupported-light
+          run_rejected subject-camera unsupported-camera
+          run_rejected subject-scene unsupported-scene
+
+          timeout_directory="$fixture_root/timeout"
+          prepare_fixture \
+            timeout \
+            experiments/subjects/fixtures/timeout.mjs
+          create_subject subject-timeout "$timeout_directory"
+          started="$(date +%s)"
+          set +e
+          timeout --signal=KILL 2s \
+            docker start -a subject-timeout \
+            > "$timeout_directory/stdout.log" \
+            2> "$timeout_directory/stderr.log"
+          timeout_status=$?
+          set -e
+          docker rm -f subject-timeout >/dev/null 2>&1 || true
+          elapsed="$(( $(date +%s) - started ))"
+          test "$timeout_status" -eq 124 -o "$timeout_status" -eq 137
+          test "$elapsed" -lt 10
+          test ! -e "$timeout_directory/output/renderable.json"
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "${{ secrets.GITHUB_TOKEN }}" \
+            | docker login ghcr.io \
+                --username "${{ github.actor }}" \
+                --password-stdin
+
+      - name: Publish verified subject image
+        if: github.event_name != 'pull_request'
+        id: publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          image_ref="$IMAGE_NAME:subject-v0-$GITHUB_SHA"
+          docker tag "$SUBJECT_IMAGE_ID" "$image_ref"
+          docker push "$image_ref" 2>&1 | tee "$RUNNER_TEMP/subject-push.log"
+          digest="$(sed -nE \
+            's/.*digest: (sha256:[0-9a-f]{64}).*/\1/p' \
+            "$RUNNER_TEMP/subject-push.log" | tail -n 1)"
+          if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Could not determine the published subject digest." >&2
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "SUBJECT_IMAGE_DIGEST=$IMAGE_NAME@$digest"
+
+      - name: Write publication summary
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          PUBLISHED_DIGEST: ${{ steps.publish.outputs.digest }}
+        run: |
+          set -euo pipefail
+          {
+            echo '## Published verified C0/C1 subject image'
+            echo
+            echo "- Image: \`$IMAGE_NAME@$PUBLISHED_DIGEST\`"
+            echo "- Source commit: \`$GITHUB_SHA\`"
+            echo '- Three.js: `0.185.1`'
+            echo "- Local image ID: \`$SUBJECT_IMAGE_ID\`"
+          } >> "$GITHUB_STEP_SUMMARY"
