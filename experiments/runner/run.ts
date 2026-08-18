@@ -138,6 +138,12 @@ export async function executeExperimentRun(
       statuses.subject = subject.status;
       await store.writeJson("execution.json", {
         status: subject.status,
+        ...(Object.hasOwn(subject, "message")
+          ? { message: subject.message }
+          : {}),
+        ...(Object.hasOwn(subject, "details")
+          ? { details: subject.details }
+          : {}),
         exit_code: subject.exitCode,
         timed_out: subject.timedOut,
         duration_ms: subject.durationMs,

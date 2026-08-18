@@ -109,6 +109,77 @@ describe("experiment runner", () => {
     expect(evaluator.calls).toHaveLength(1);
   });
 
+  it("persists complete subject failure evidence and process logs", async () => {
+    const fixture = await temporaryRunInput();
+    cleanup.push(fixture.root);
+    const evaluator = new RecordingEvaluator();
+    const details = {
+      path: "$.children[0]",
+      nodeType: "AmbientLight",
+      constructorName: "AmbientLight",
+    };
+    const subject = {
+      imageDigest:
+        "ghcr.io/reality404studio/3d-world-compiler-subject@sha256:0e87afc4d3b63d5fede4117393299bae131a48fcc68416d9d39e437738240bd7",
+      async execute() {
+        return {
+          status: "UNSUPPORTED_RENDERABLE_NODE" as const,
+          message: "UNSUPPORTED_RENDERABLE_NODE",
+          details,
+          exitCode: 1,
+          timedOut: false,
+          stdout: "subject stdout",
+          stderr: "subject stderr",
+          renderable: null,
+          durationMs: 7,
+        };
+      },
+    };
+    const result = await executeExperimentRun(
+      {
+        runId: "c0-subject-failure-evidence",
+        condition: "C0",
+        assetId: "synthetic",
+        referenceFile: fixture.referenceFile,
+        referenceMimeType: "image/png",
+        runsDirectory: fixture.runsDirectory,
+        referenceRegistryDirectory: fixture.referenceRegistryDirectory,
+      },
+      {
+        gemini: new MockGemini(generation("subject source")),
+        subject,
+        evaluator,
+      },
+    );
+
+    expect(
+      JSON.parse(
+        await readFile(path.join(result.directory, "execution.json"), "utf8"),
+      ),
+    ).toEqual({
+      status: "UNSUPPORTED_RENDERABLE_NODE",
+      message: "UNSUPPORTED_RENDERABLE_NODE",
+      details,
+      exit_code: 1,
+      timed_out: false,
+      duration_ms: 7,
+    });
+    expect(
+      await readFile(
+        path.join(result.directory, "logs/subject.stdout.log"),
+        "utf8",
+      ),
+    ).toBe("subject stdout");
+    expect(
+      await readFile(
+        path.join(result.directory, "logs/subject.stderr.log"),
+        "utf8",
+      ),
+    ).toBe("subject stderr");
+    expect(result.manifest.failure_code).toBe("UNSUPPORTED_RENDERABLE_NODE");
+    expect(evaluator.calls).toHaveLength(0);
+  });
+
   it("creates a complete C2 manifest and hands one renderable to the evaluator", async () => {
     const fixture = await temporaryRunInput();
     cleanup.push(fixture.root);

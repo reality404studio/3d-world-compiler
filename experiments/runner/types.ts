@@ -80,6 +80,8 @@ export interface SubjectExecutionResult {
     | "SUBJECT_CODE_RUNTIME_FAILURE"
     | "SUBJECT_TIMEOUT"
     | "UNSUPPORTED_RENDERABLE_NODE";
+  message?: string;
+  details?: unknown;
   exitCode: number | null;
   timedOut: boolean;
   stdout: string;

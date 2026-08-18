@@ -13,6 +13,54 @@ export const SUBJECT_IMAGE_DIGEST =
   trustAnchors.subject_image_digest;
 export const SUBJECT_TIMEOUT_MS = 10_000;
 const IMMUTABLE_IMAGE_REFERENCE = /.+@sha256:[a-f0-9]{64}$/;
+const SUBJECT_EXECUTION_STATUSES = new Set<SubjectExecutionResult["status"]>([
+  "SUCCESS",
+  "SUBJECT_CODE_SYNTAX_FAILURE",
+  "SUBJECT_CODE_RUNTIME_FAILURE",
+  "SUBJECT_TIMEOUT",
+  "UNSUPPORTED_RENDERABLE_NODE",
+]);
+
+type SubjectExecutionEvidence = Pick<
+  SubjectExecutionResult,
+  "status" | "message" | "details"
+>;
+
+function parseSubjectExecutionEvidence(text: string): SubjectExecutionEvidence {
+  const parsed = JSON.parse(text) as unknown;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Subject execution result must be one JSON object.");
+  }
+  const record = parsed as Record<string, unknown>;
+  if (
+    typeof record.status !== "string" ||
+    !SUBJECT_EXECUTION_STATUSES.has(
+      record.status as SubjectExecutionResult["status"],
+    )
+  ) {
+    throw new Error("Subject execution result has an invalid status.");
+  }
+  if ("message" in record && typeof record.message !== "string") {
+    throw new Error("Subject execution result has a non-string message.");
+  }
+  return {
+    status: record.status as SubjectExecutionResult["status"],
+    ...("message" in record ? { message: record.message as string } : {}),
+    ...(Object.hasOwn(record, "details") ? { details: record.details } : {}),
+  };
+}
+
+function unavailableExecutionEvidence(error: unknown): SubjectExecutionEvidence {
+  return {
+    status: "SUBJECT_CODE_RUNTIME_FAILURE",
+    message: "Subject execution result file could not be read or parsed.",
+    details: {
+      diagnostic: "SUBJECT_EXECUTION_RESULT_UNAVAILABLE",
+      file: "execution-result.json",
+      cause: error instanceof Error ? error.message : String(error),
+    },
+  };
+}
 
 export function assertImmutableSubjectImageReference(image: string): void {
   if (!IMMUTABLE_IMAGE_REFERENCE.test(image)) {
@@ -174,13 +222,13 @@ export class DockerSubjectExecutor implements SubjectExecutor {
         };
       }
 
-      let execution: { status?: SubjectExecutionResult["status"] } = {};
+      let execution: SubjectExecutionEvidence;
       try {
-        execution = JSON.parse(
+        execution = parseSubjectExecutionEvidence(
           await readFile(path.join(outputDirectory, "execution-result.json"), "utf8"),
-        ) as { status?: SubjectExecutionResult["status"] };
-      } catch {
-        execution = { status: "SUBJECT_CODE_RUNTIME_FAILURE" };
+        );
+      } catch (error) {
+        execution = unavailableExecutionEvidence(error);
       }
       let renderable = null;
       if (execution.status === "SUCCESS") {
@@ -189,7 +237,7 @@ export class DockerSubjectExecutor implements SubjectExecutor {
         );
       }
       return {
-        status: execution.status ?? "SUBJECT_CODE_RUNTIME_FAILURE",
+        ...execution,
         ...outcome,
         renderable,
       };

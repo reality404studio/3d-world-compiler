@@ -30,6 +30,35 @@ async function withFakeDocker(
   }
 }
 
+function outputDirectoryFromDockerArgs(args: string[]): string {
+  const mount = args.find((argument) => argument.endsWith(",dst=/output"));
+  const prefix = "type=bind,src=";
+  const suffix = ",dst=/output";
+  if (!mount?.startsWith(prefix)) {
+    throw new Error("Subject Docker arguments did not include the output mount.");
+  }
+  return mount.slice(prefix.length, -suffix.length);
+}
+
+function subjectRunWithExecutionResult(contents?: string) {
+  return async (args: string[]) => {
+    if (contents !== undefined) {
+      await writeFile(
+        path.join(outputDirectoryFromDockerArgs(args), "execution-result.json"),
+        contents,
+        "utf8",
+      );
+    }
+    return {
+      exitCode: 1,
+      timedOut: false,
+      stdout: "subject stdout",
+      stderr: "subject stderr",
+      durationMs: 7,
+    };
+  };
+}
+
 describe("untrusted free-form subject boundary", () => {
   it("does not inherit GEMINI_API_KEY or any secret environment variable", async () => {
     const previous = process.env.GEMINI_API_KEY;
@@ -96,4 +125,93 @@ describe("untrusted free-form subject boundary", () => {
       });
     });
   });
+
+  it("preserves a runtime failure message from execution-result.json", async () => {
+    const executor = new DockerSubjectExecutor(
+      SUBJECT_IMAGE_DIGEST,
+      1_000,
+      subjectRunWithExecutionResult(
+        JSON.stringify({
+          status: "SUBJECT_CODE_RUNTIME_FAILURE",
+          message: "build is not defined",
+        }),
+      ),
+    );
+
+    await expect(executor.execute("ignored")).resolves.toMatchObject({
+      status: "SUBJECT_CODE_RUNTIME_FAILURE",
+      message: "build is not defined",
+      stdout: "subject stdout",
+      stderr: "subject stderr",
+    });
+  });
+
+  it("preserves a syntax failure message from execution-result.json", async () => {
+    const executor = new DockerSubjectExecutor(
+      SUBJECT_IMAGE_DIGEST,
+      1_000,
+      subjectRunWithExecutionResult(
+        JSON.stringify({
+          status: "SUBJECT_CODE_SYNTAX_FAILURE",
+          message: "Unexpected token '}'",
+        }),
+      ),
+    );
+
+    await expect(executor.execute("ignored")).resolves.toMatchObject({
+      status: "SUBJECT_CODE_SYNTAX_FAILURE",
+      message: "Unexpected token '}'",
+    });
+  });
+
+  it("preserves unsupported-node details from execution-result.json", async () => {
+    const details = {
+      path: "$.children[0]",
+      nodeType: "AmbientLight",
+      constructorName: "AmbientLight",
+    };
+    const executor = new DockerSubjectExecutor(
+      SUBJECT_IMAGE_DIGEST,
+      1_000,
+      subjectRunWithExecutionResult(
+        JSON.stringify({
+          status: "UNSUPPORTED_RENDERABLE_NODE",
+          message: "UNSUPPORTED_RENDERABLE_NODE",
+          details,
+        }),
+      ),
+    );
+
+    await expect(executor.execute("ignored")).resolves.toMatchObject({
+      status: "UNSUPPORTED_RENDERABLE_NODE",
+      message: "UNSUPPORTED_RENDERABLE_NODE",
+      details,
+    });
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["malformed", "{not-json"],
+  ])(
+    "preserves an explicit diagnostic for %s execution-result evidence",
+    async (_case, contents) => {
+      const executor = new DockerSubjectExecutor(
+        SUBJECT_IMAGE_DIGEST,
+        1_000,
+        subjectRunWithExecutionResult(contents),
+      );
+
+      await expect(executor.execute("ignored")).resolves.toMatchObject({
+        status: "SUBJECT_CODE_RUNTIME_FAILURE",
+        message: "Subject execution result file could not be read or parsed.",
+        details: {
+          diagnostic: "SUBJECT_EXECUTION_RESULT_UNAVAILABLE",
+          file: "execution-result.json",
+          cause: expect.any(String),
+        },
+        stdout: "subject stdout",
+        stderr: "subject stderr",
+      });
+    },
+  );
 });
