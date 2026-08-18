@@ -247,8 +247,8 @@
     },
     {
       "path": "src/viewer/capture.ts",
-      "sha256": "5fe3ddf81ff2dcb3a08d2be0aff45f84bfe8f614ebc88cfe00fef33f348de2fd",
-      "size": 3365
+      "sha256": "82fd05dfd750003034b96f99f72baa010175d1d4f4ba47a0a7c69b2b8b80c2f3",
+      "size": 3388
     },
     {
       "path": "src/viewer/environment.ts",

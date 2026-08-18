@@ -54,6 +54,7 @@ export async function captureRenderableScene(
 
   const server = await createServer({
     root: PROJECT_ROOT,
+    configFile: false,
     cacheDir: viteCacheDirectory,
     logLevel: "silent",
     server: { host: "127.0.0.1", port: 0, strictPort: false },
