@@ -1,0 +1,8 @@
+{
+  "version": "reference-registration-v1",
+  "asset_id": "pikachu-v1",
+  "expected_filename": "reference.png",
+  "expected_sha256": "1d76c4be52db98c47ea7772ae01936194d2622a17a61cf904733fa684a97771d",
+  "status": "approved",
+  "purpose": "calibration"
+}
