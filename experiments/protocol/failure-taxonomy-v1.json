@@ -1,6 +1,8 @@
 {
   "version": "failure-taxonomy-v1",
   "codes": [
+    "REFERENCE_NOT_REGISTERED",
+    "REFERENCE_HASH_MISMATCH",
     "API_FAILURE",
     "API_TRANSPORT_RETRY",
     "MODEL_OUTPUT_PARSE_FAILURE",

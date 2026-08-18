@@ -119,6 +119,7 @@ export interface RunInput {
   referenceFile: string;
   referenceMimeType: string;
   runsDirectory: string;
+  referenceRegistryDirectory?: string;
 }
 
 export interface RunManifest {

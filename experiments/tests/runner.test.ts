@@ -70,6 +70,7 @@ describe("experiment runner", () => {
         referenceFile: fixture.referenceFile,
         referenceMimeType: "image/png",
         runsDirectory: fixture.runsDirectory,
+        referenceRegistryDirectory: fixture.referenceRegistryDirectory,
       },
       { gemini, subject, evaluator },
     );
@@ -88,6 +89,18 @@ describe("experiment runner", () => {
       await readFile(path.join(result.directory, "request.json"), "utf8"),
     ) as Record<string, unknown>;
     expect(initialRequest).not.toHaveProperty("api_attempt_number");
+    expect(
+      JSON.parse(
+        await readFile(
+          path.join(result.directory, "reference-registration.json"),
+          "utf8",
+        ),
+      ),
+    ).toMatchObject({
+      version: "reference-registration-v1",
+      asset_id: "synthetic",
+      expected_sha256: initialRequest.reference_sha256,
+    });
     expect(
       JSON.parse(
         await readFile(path.join(result.directory, "request-evidence.json"), "utf8"),
@@ -109,6 +122,7 @@ describe("experiment runner", () => {
         referenceFile: fixture.referenceFile,
         referenceMimeType: "image/png",
         runsDirectory: fixture.runsDirectory,
+        referenceRegistryDirectory: fixture.referenceRegistryDirectory,
       },
       {
         gemini,
@@ -158,6 +172,7 @@ describe("experiment runner", () => {
         referenceFile: fixture.referenceFile,
         referenceMimeType: "image/png",
         runsDirectory: fixture.runsDirectory,
+        referenceRegistryDirectory: fixture.referenceRegistryDirectory,
       },
       { gemini, subject: new UnexpectedSubject(), evaluator },
     );
@@ -183,6 +198,7 @@ describe("experiment runner", () => {
         referenceFile: fixture.referenceFile,
         referenceMimeType: "image/png",
         runsDirectory: fixture.runsDirectory,
+        referenceRegistryDirectory: fixture.referenceRegistryDirectory,
       },
       { gemini, subject: new UnexpectedSubject(), evaluator },
     );

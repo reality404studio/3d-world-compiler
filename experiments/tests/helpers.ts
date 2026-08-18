@@ -1,6 +1,7 @@
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { sha256 } from "../runner/hash";
 import type {
   EvaluationResult,
   Evaluator,
@@ -15,8 +16,26 @@ export async function temporaryRunInput() {
   const runsDirectory = path.join(root, "runs");
   await mkdir(runsDirectory);
   const referenceFile = path.join(root, "synthetic.png");
-  await writeFile(referenceFile, Buffer.from("synthetic-reference"));
-  return { root, runsDirectory, referenceFile };
+  const referenceBytes = Buffer.from("synthetic-reference");
+  await writeFile(referenceFile, referenceBytes);
+  const referenceRegistryDirectory = path.join(root, "registry");
+  await mkdir(referenceRegistryDirectory);
+  await writeFile(
+    path.join(referenceRegistryDirectory, "synthetic.json"),
+    `${JSON.stringify(
+      {
+        version: "reference-registration-v1",
+        asset_id: "synthetic",
+        expected_filename: "synthetic.png",
+        expected_sha256: sha256(referenceBytes),
+        status: "approved",
+        purpose: "calibration",
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  return { root, runsDirectory, referenceFile, referenceRegistryDirectory };
 }
 
 export function generation(text: string): GeminiGeneration {

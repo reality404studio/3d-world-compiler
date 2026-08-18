@@ -13,6 +13,7 @@ import { ExperimentFailure, failureCode, type FailureCode } from "./failures";
 import { sha256 } from "./hash";
 import { verifyFrozenEnvironment } from "./integrity";
 import { composePrompt } from "./prompts";
+import { requireRegisteredReference } from "./references";
 import { RunStore } from "./run-store";
 import type {
   Evaluator,
@@ -103,6 +104,13 @@ export async function executeExperimentRun(
   });
 
   try {
+    const registration = await requireRegisteredReference(
+      reference.assetId,
+      reference.sha256,
+      input.referenceRegistryDirectory,
+    );
+    await store.writeJson("reference-registration.json", registration);
+
     if (input.condition === "C3") {
       throw new ExperimentFailure(
         "C3_VERIFIER_NOT_FROZEN",
