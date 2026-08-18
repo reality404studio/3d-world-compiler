@@ -26,9 +26,28 @@ describe("experiment runner", () => {
     const fixture = await temporaryRunInput();
     cleanup.push(fixture.root);
     const source = "export default function build(THREE) { return new THREE.Group(); }\n";
-    const gemini = new MockGemini(generation(source));
+    const successfulGeneration = generation(source);
+    successfulGeneration.transportRetries = 1;
+    successfulGeneration.attempts = [
+      {
+        attempt_number: 1,
+        latency_ms: 4,
+        http_status: 503,
+        outcome: "API_TRANSPORT_RETRY",
+      },
+      {
+        attempt_number: 2,
+        latency_ms: 8,
+        http_status: 200,
+        outcome: "SUCCESS",
+      },
+    ];
+    successfulGeneration.requestEvidence.api_attempt_number = 2;
+    const gemini = new MockGemini(successfulGeneration);
     const evaluator = new RecordingEvaluator();
     const subject = {
+      imageDigest:
+        "ghcr.io/reality404studio/3d-world-compiler-subject@sha256:0e87afc4d3b63d5fede4117393299bae131a48fcc68416d9d39e437738240bd7",
       calls: [] as string[],
       async execute(value: string) {
         this.calls.push(value);
@@ -61,7 +80,19 @@ describe("experiment runner", () => {
       validation_status: "RENDERABLE_VALID",
       evaluator_status: "SUCCESS",
       failure_code: null,
+      api_transport_retries: 1,
+      subject_image_digest:
+        "ghcr.io/reality404studio/3d-world-compiler-subject@sha256:0e87afc4d3b63d5fede4117393299bae131a48fcc68416d9d39e437738240bd7",
     });
+    const initialRequest = JSON.parse(
+      await readFile(path.join(result.directory, "request.json"), "utf8"),
+    ) as Record<string, unknown>;
+    expect(initialRequest).not.toHaveProperty("api_attempt_number");
+    expect(
+      JSON.parse(
+        await readFile(path.join(result.directory, "request-evidence.json"), "utf8"),
+      ),
+    ).toEqual(successfulGeneration.requestEvidence);
     expect(evaluator.calls).toHaveLength(1);
   });
 
@@ -97,6 +128,7 @@ describe("experiment runner", () => {
       model_repairs: 0,
       failure_code: null,
       environment_commit: "91501a2e90d5d550acff01c3255f72c650ba1c03",
+      subject_image_digest: null,
     });
     const validate = new Ajv({ strict: false }).compile(runManifestSchema);
     expect(validate(result.manifest), validate.errors?.map((error) => error.message).join(", ")).toBe(true);
@@ -155,6 +187,7 @@ describe("experiment runner", () => {
       { gemini, subject: new UnexpectedSubject(), evaluator },
     );
     expect(result.manifest.failure_code).toBe("C3_VERIFIER_NOT_FROZEN");
+    expect(result.manifest.subject_image_digest).toBeNull();
     expect(result.manifest.validation_status).toBe("C3_VERIFIER_NOT_FROZEN");
     expect(gemini.calls).toHaveLength(0);
     expect(evaluator.calls).toHaveLength(0);

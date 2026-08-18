@@ -60,6 +60,8 @@ export class MockGemini implements GeminiClient {
 }
 
 export class UnexpectedSubject implements SubjectExecutor {
+  readonly imageDigest = null;
+
   async execute(): Promise<never> {
     throw new Error("Subject executor should not be called.");
   }

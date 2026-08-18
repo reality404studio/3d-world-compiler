@@ -60,6 +60,15 @@ export async function executeExperimentRun(
   const reference = await referenceInput(input);
   const anchors = await loadTrustAnchors();
   const config = await loadRequestConfig();
+  if (
+    (input.condition === "C0" || input.condition === "C1") &&
+    dependencies.subject.imageDigest !== anchors.subject_image_digest
+  ) {
+    throw new ExperimentFailure(
+      "FROZEN_ENVIRONMENT_MODIFIED",
+      "Subject executor does not match the approved apparatus digest.",
+    );
+  }
   const store = await RunStore.create(input.runsDirectory, input.runId);
   const startedAt = (dependencies.now ?? (() => new Date()))();
   const startedClock = performance.now();
@@ -91,7 +100,6 @@ export async function executeExperimentRun(
     condition_prompt_sha256: prompt.conditionSha256,
     model_id: config.model_id,
     request_config: requestConfig,
-    api_attempt_number: 1,
   });
 
   try {
@@ -113,6 +121,7 @@ export async function executeExperimentRun(
     await store.writeText("raw-response.txt", generation.rawResponseText);
     await store.writeJson("raw-response.json", generation.rawResponse);
     await store.writeJson("logs/api-attempts.json", generation.attempts);
+    await store.writeJson("request-evidence.json", generation.requestEvidence);
 
     let renderable: RenderableScene;
     if (input.condition === "C0" || input.condition === "C1") {
@@ -265,6 +274,10 @@ export async function executeExperimentRun(
     environment_commit: anchors.environment_commit,
     environment_manifest_sha256: anchors.environment_manifest_sha256,
     evaluator_image_digest: anchors.evaluator_image_digest,
+    subject_image_digest:
+      input.condition === "C0" || input.condition === "C1"
+        ? dependencies.subject.imageDigest
+        : null,
   };
   await store.writeJson("manifest.json", manifest);
   return { directory: store.directory, manifest };

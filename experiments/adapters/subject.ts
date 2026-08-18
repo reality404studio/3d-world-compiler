@@ -3,13 +3,24 @@ import { randomUUID } from "node:crypto";
 import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import trustAnchors from "../protocol/trust-anchors-v0.json";
 import type {
   SubjectExecutionResult,
   SubjectExecutor,
 } from "../runner/types";
 
-export const SUBJECT_IMAGE = "3d-world-compiler-subject-v0:three-0.185.1";
+export const SUBJECT_IMAGE_DIGEST =
+  trustAnchors.subject_image_digest;
 export const SUBJECT_TIMEOUT_MS = 10_000;
+const IMMUTABLE_IMAGE_REFERENCE = /.+@sha256:[a-f0-9]{64}$/;
+
+export function assertImmutableSubjectImageReference(image: string): void {
+  if (!IMMUTABLE_IMAGE_REFERENCE.test(image)) {
+    throw new Error(
+      "Subject image must be an immutable registry reference ending in @sha256:<64 lowercase hex characters>.",
+    );
+  }
+}
 
 interface ProcessOutcome {
   exitCode: number | null;
@@ -77,13 +88,19 @@ export function runSubjectContainer(
 export function buildSubjectDockerArgs(
   inputDirectory: string,
   outputDirectory: string,
-  image = SUBJECT_IMAGE,
+  image = SUBJECT_IMAGE_DIGEST,
   containerName?: string,
 ): string[] {
+  assertImmutableSubjectImageReference(image);
+  if (image !== SUBJECT_IMAGE_DIGEST) {
+    throw new Error("Subject image does not match the approved apparatus digest.");
+  }
   return [
     "run",
     "--rm",
     ...(containerName ? ["--name", containerName] : []),
+    "--platform",
+    "linux/amd64",
     "--network",
     "none",
     "--read-only",
@@ -111,14 +128,19 @@ export function buildSubjectDockerArgs(
 
 export class DockerSubjectExecutor implements SubjectExecutor {
   constructor(
-    private readonly image = SUBJECT_IMAGE,
+    readonly imageDigest = SUBJECT_IMAGE_DIGEST,
     private readonly timeoutMs = SUBJECT_TIMEOUT_MS,
     private readonly run: (
       args: string[],
       timeoutMs: number,
       containerName?: string,
     ) => Promise<ProcessOutcome> = runSubjectContainer,
-  ) {}
+  ) {
+    assertImmutableSubjectImageReference(imageDigest);
+    if (imageDigest !== SUBJECT_IMAGE_DIGEST) {
+      throw new Error("Subject image does not match the approved apparatus digest.");
+    }
+  }
 
   async execute(source: string): Promise<SubjectExecutionResult> {
     const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "3d-subject-v0-"));
@@ -138,7 +160,7 @@ export class DockerSubjectExecutor implements SubjectExecutor {
         buildSubjectDockerArgs(
           inputDirectory,
           outputDirectory,
-          this.image,
+          this.imageDigest,
           containerName,
         ),
         this.timeoutMs,

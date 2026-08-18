@@ -23,7 +23,8 @@
     "evaluator_status",
     "environment_commit",
     "environment_manifest_sha256",
-    "evaluator_image_digest"
+    "evaluator_image_digest",
+    "subject_image_digest"
   ],
   "properties": {
     "run_id": { "type": "string", "minLength": 1 },
@@ -46,6 +47,27 @@
     "failure_code": { "type": ["string", "null"] },
     "environment_commit": { "const": "91501a2e90d5d550acff01c3255f72c650ba1c03" },
     "environment_manifest_sha256": { "const": "315d5a625e53c0cd9f01d63eba6f206ffd349f74ebf824d14634de7d9c2428f9" },
-    "evaluator_image_digest": { "const": "ghcr.io/reality404studio/3d-world-compiler-evaluator@sha256:e5ec14d963e7e4b84d76af0c64de36e3841354033b92623a27e340d74fd0177f" }
-  }
+    "evaluator_image_digest": { "const": "ghcr.io/reality404studio/3d-world-compiler-evaluator@sha256:e5ec14d963e7e4b84d76af0c64de36e3841354033b92623a27e340d74fd0177f" },
+    "subject_image_digest": {
+      "enum": [
+        "ghcr.io/reality404studio/3d-world-compiler-subject@sha256:0e87afc4d3b63d5fede4117393299bae131a48fcc68416d9d39e437738240bd7",
+        null
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "condition": { "enum": ["C0", "C1"] } } },
+      "then": {
+        "properties": {
+          "subject_image_digest": {
+            "const": "ghcr.io/reality404studio/3d-world-compiler-subject@sha256:0e87afc4d3b63d5fede4117393299bae131a48fcc68416d9d39e437738240bd7"
+          }
+        }
+      },
+      "else": {
+        "properties": { "subject_image_digest": { "type": "null" } }
+      }
+    }
+  ]
 }

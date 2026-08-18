@@ -17,6 +17,9 @@ export interface TrustAnchors {
   environment_commit: string;
   environment_manifest_sha256: string;
   evaluator_image_digest: string;
+  subject_image_digest: string;
+  subject_image_source_commit: string;
+  subject_image_workflow_run: string;
 }
 
 export interface PromptBundle {
@@ -86,6 +89,7 @@ export interface SubjectExecutionResult {
 }
 
 export interface SubjectExecutor {
+  readonly imageDigest: string | null;
   execute(source: string): Promise<SubjectExecutionResult>;
 }
 
@@ -139,4 +143,5 @@ export interface RunManifest {
   environment_commit: string;
   environment_manifest_sha256: string;
   evaluator_image_digest: string;
+  subject_image_digest: string | null;
 }

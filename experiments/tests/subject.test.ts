@@ -4,6 +4,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   DockerSubjectExecutor,
+  SUBJECT_IMAGE_DIGEST,
+  assertImmutableSubjectImageReference,
   buildSubjectDockerArgs,
   runSubjectContainer,
   subjectProcessEnvironment,
@@ -52,14 +54,41 @@ describe("untrusted free-form subject boundary", () => {
   it("uses no network, read-only root, resource bounds, and no evaluator mount", () => {
     const args = buildSubjectDockerArgs("/tmp/input", "/tmp/output");
     expect(args).toEqual(expect.arrayContaining(["--network", "none", "--read-only"]));
+    expect(args).toEqual(
+      expect.arrayContaining(["--platform", "linux/amd64", SUBJECT_IMAGE_DIGEST]),
+    );
     expect(args.join(" ")).toContain("/input,readonly");
     expect(args.join(" ")).not.toContain("freeze/");
     expect(args.join(" ")).not.toContain("src/evaluator");
   });
 
+  it("refuses mutable subject image tags", () => {
+    expect(() =>
+      assertImmutableSubjectImageReference(
+        "3d-world-compiler-subject-v0:three-0.185.1",
+      ),
+    ).toThrow("immutable registry reference");
+    expect(
+      () => new DockerSubjectExecutor("3d-world-compiler-subject-v0:latest"),
+    ).toThrow("immutable registry reference");
+    expect(
+      () =>
+        new DockerSubjectExecutor(
+          `ghcr.io/example/other@sha256:${"a".repeat(64)}`,
+        ),
+    ).toThrow("approved apparatus digest");
+    expect(() =>
+      buildSubjectDockerArgs(
+        "/tmp/input",
+        "/tmp/output",
+        `ghcr.io/example/other@sha256:${"a".repeat(64)}`,
+      ),
+    ).toThrow("approved apparatus digest");
+  });
+
   it("kills and classifies a real timed-out subject-side process", async () => {
     await withFakeDocker('if [ "$1" = "rm" ]; then exit 0; fi\n/bin/sleep 5', async () => {
-      const executor = new DockerSubjectExecutor("fixture-image", 20);
+      const executor = new DockerSubjectExecutor(SUBJECT_IMAGE_DIGEST, 20);
       await expect(executor.execute("export default () => null")).resolves.toMatchObject({
         status: "SUBJECT_TIMEOUT",
         timedOut: true,

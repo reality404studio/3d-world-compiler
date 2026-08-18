@@ -42,6 +42,7 @@ Every run is bound to:
 - environment-v0 commit: `91501a2e90d5d550acff01c3255f72c650ba1c03`
 - manifest SHA-256: `315d5a625e53c0cd9f01d63eba6f206ffd349f74ebf824d14634de7d9c2428f9`
 - evaluator image: `ghcr.io/reality404studio/3d-world-compiler-evaluator@sha256:e5ec14d963e7e4b84d76af0c64de36e3841354033b92623a27e340d74fd0177f`
+- C0/C1 subject image: `ghcr.io/reality404studio/3d-world-compiler-subject@sha256:0e87afc4d3b63d5fede4117393299bae131a48fcc68416d9d39e437738240bd7`
 
 The runner verifies the frozen manifest before generation and again after a successful evaluation. The evaluator image separately verifies its baked environment before and after capture. It is invoked with a read-only root filesystem, non-root user, no network, dropped capabilities, no-new-privileges, a read-only renderable input, and one writable capture output.
 
@@ -59,14 +60,7 @@ Generated free-form code is preserved exactly as `subject-source.js`. It is neve
 - accepts only exact `Object3D`, `Group`, and `Mesh` trees;
 - emits one static `renderable-v0` document.
 
-Only that serialized artifact crosses into the trusted frozen evaluator. Subject stdout and stderr are captured separately. Build the fixed subject-side image before a future authorized C0/C1 run:
-
-```bash
-docker build \
-  -f experiments/subjects/Dockerfile \
-  -t 3d-world-compiler-subject-v0:three-0.185.1 \
-  experiments/subjects
-```
+Only that serialized artifact crosses into the trusted frozen evaluator. Subject stdout and stderr are captured separately. `.github/workflows/subject-image.yml` builds the pinned Dockerfile, exercises the complete runtime boundary, and publishes a verified image to GHCR. Experimental C0/C1 runs accept only the immutable digest above; mutable tags and local image names are rejected. The approved publication is recorded in the trust-anchor file with source commit and workflow-run evidence.
 
 ## C2 and C3 behavior
 
@@ -87,7 +81,9 @@ Evidence includes, as applicable:
 - separate subject/evaluator stdout and stderr logs;
 - neutral and authored six-view capture directories.
 
-The manifest records reference and prompt hashes, explicit request settings, latency, returned usage metadata, API transport-retry count, model-repair count, failure-specific statuses, and all frozen trust anchors. `GEMINI_API_KEY` is read only by the API adapter and is never written to a request, response, log, prompt, or manifest. If absent, generation fails with `GEMINI_API_KEY_MISSING`.
+The manifest records reference and prompt hashes, explicit request settings, latency, returned usage metadata, API transport-retry count, model-repair count, failure-specific statuses, and all applicable frozen trust anchors. C0/C1 record the exact subject image digest; C2/C3 record `null` because they never execute free-form subject code. `GEMINI_API_KEY` is read only by the API adapter and is never written to a request, response, log, prompt, or manifest. If absent, generation fails with `GEMINI_API_KEY_MISSING`.
+
+`request.json` records the initial request configuration without claiming a final attempt number. `logs/api-attempts.json` records each transport attempt, and `request-evidence.json` separately records the actual successful request evidence returned by the adapter.
 
 ## Evaluations
 
