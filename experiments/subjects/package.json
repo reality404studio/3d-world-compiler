@@ -1,0 +1,9 @@
+{
+  "name": "3d-world-compiler-subject-v0",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "three": "0.185.1"
+  }
+}

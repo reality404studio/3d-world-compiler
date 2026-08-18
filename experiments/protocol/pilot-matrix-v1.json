@@ -1,0 +1,11 @@
+{
+  "version": "pilot-matrix-v1",
+  "status": "PLANNED_NOT_AUTHORIZED",
+  "model_id": "gemini-3.7-flash",
+  "assets": ["Pikachu", "Magikarp", "Psyduck", "Magnemite"],
+  "conditions": ["C0", "C1", "C2"],
+  "deferred_conditions": ["C3"],
+  "independent_runs_per_asset_condition": 2,
+  "references_present": false,
+  "paid_api_calls_authorized": false
+}

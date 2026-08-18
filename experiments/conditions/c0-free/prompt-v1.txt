@@ -1,0 +1,4 @@
+Return one JavaScript ES module as plain source text, without Markdown fences or commentary.
+The module must export exactly one default function named build that accepts the provided THREE namespace and returns one static THREE.Object3D, THREE.Group, or THREE.Mesh tree.
+The tree may contain only Object3D, Group, and Mesh nodes. Do not create a Scene, camera, light, renderer, animation, loader, network request, or filesystem access.
+All geometry and authored materials must be created inside build.

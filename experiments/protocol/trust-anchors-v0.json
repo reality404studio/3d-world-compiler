@@ -1,0 +1,9 @@
+{
+  "version": "environment-v0-approved-2026-08-18",
+  "environment_commit": "91501a2e90d5d550acff01c3255f72c650ba1c03",
+  "environment_manifest_sha256": "315d5a625e53c0cd9f01d63eba6f206ffd349f74ebf824d14634de7d9c2428f9",
+  "evaluator_image_digest": "ghcr.io/reality404studio/3d-world-compiler-evaluator@sha256:e5ec14d963e7e4b84d76af0c64de36e3841354033b92623a27e340d74fd0177f",
+  "subject_image_digest": "ghcr.io/reality404studio/3d-world-compiler-subject@sha256:0e87afc4d3b63d5fede4117393299bae131a48fcc68416d9d39e437738240bd7",
+  "subject_image_source_commit": "c1fdbfae39662efad35bdadb7e11e036e52051c1",
+  "subject_image_workflow_run": "https://github.com/reality404studio/3d-world-compiler/actions/runs/32115031858"
+}

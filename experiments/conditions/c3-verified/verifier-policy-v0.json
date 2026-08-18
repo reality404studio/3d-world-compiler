@@ -1,0 +1,7 @@
+{
+  "version": "c3-verifier-policy-v0",
+  "frozen": false,
+  "status": "C3_VERIFIER_NOT_FROZEN",
+  "max_repairs": 0,
+  "verifier": null
+}
