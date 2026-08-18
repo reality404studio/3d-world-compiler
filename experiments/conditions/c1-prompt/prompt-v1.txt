@@ -1,0 +1,15 @@
+Return one JavaScript ES module as plain source text, without Markdown fences or commentary.
+The module must export exactly one default function named build that accepts the provided THREE namespace and returns one static THREE.Object3D, THREE.Group, or THREE.Mesh tree.
+The tree may contain only Object3D, Group, and Mesh nodes. Do not create a Scene, camera, light, renderer, animation, loader, network request, or filesystem access.
+All geometry and authored materials must be created inside build.
+
+Author the asset under these world-v0 rules. These rules are instructions only; your source will be preserved exactly for later compliance analysis.
+
+- Use only sphere, ellipsoid, capsule, cone, frustum, box, wedge, and tube primitive families.
+- Use only these material names and appearances: clay (#c9c2b5, roughness 0.82, metalness 0); slate (#5d6872, 0.76, 0); sand (#c8ab78, 0.88, 0); teal (#4f8581, 0.72, 0); coral (#b96f61, 0.78, 0).
+- Use no more than 24 parts.
+- Each position component must be between -4 and 4. Each rotation component must be between -180 and 180 degrees. Each scale component must be between 0.1 and 3.
+- Every rotation must be a multiple of 15 degrees.
+- Use one effective root hierarchy.
+- Create mirrored parts by exact reflection of an explicit source part across x, y, or z; do not mirror another mirrored part.
+- Keep estimated geometry complexity at or below 5,000 triangles.

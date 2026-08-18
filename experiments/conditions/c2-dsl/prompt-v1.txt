@@ -1,0 +1,2 @@
+Return one assembly JSON document only. Do not return JavaScript, Markdown fences, commentary, or repairs.
+The response must match the supplied assembly schema and world-v0 specification exactly.
