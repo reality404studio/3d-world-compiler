@@ -88,7 +88,7 @@ describe("trusted evaluator container policy", () => {
     const root = fileURLToPath(new URL("..", import.meta.url));
     const dockerfile = await readFile(path.join(root, "evaluator/Dockerfile"), "utf8");
 
-    expect(dockerfile).toContain("FROM node:22.18.0-bookworm-slim");
+    expect(dockerfile).toContain("FROM node:22.23.4-bookworm-slim");
     expect(dockerfile).toContain("RUN npm ci");
     expect(dockerfile).toContain("playwright install --with-deps chromium");
     expect(dockerfile).toContain("ARG EXPECTED_MANIFEST_SHA256");
